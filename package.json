@@ -1,0 +1,27 @@
+{
+  "name": "weekly-budgeter",
+  "version": "1.0.0",
+  "description": "A simple PWA/Fireship app for budgeting",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "webpack"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nrhubbar/weekly-budgeter.git"
+  },
+  "author": "nrhubbar",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nrhubbar/weekly-budgeter/issues"
+  },
+  "homepage": "https://github.com/nrhubbar/weekly-budgeter#readme",
+  "dependencies": {
+    "firebase": "^9.6.5",
+    "webpack": "^5.67.0"
+  },
+  "devDependencies": {
+    "webpack-cli": "^4.9.2"
+  }
+}

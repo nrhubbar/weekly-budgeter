@@ -2,6 +2,9 @@
 # Created by https://www.toptal.com/developers/gitignore/api/node,firebase,windows,visualstudiocode,linux
 # Edit at https://www.toptal.com/developers/gitignore?templates=node,firebase,windows,visualstudiocode,linux
 
+### Webpack Output ###
+**/main.js
+
 ### Firebase ###
 .idea
 **/node_modules/*

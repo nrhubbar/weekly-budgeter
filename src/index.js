@@ -1,6 +1,6 @@
-import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
+import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, getDoc, setDoc, addDoc, collection } from "firebase/firestore";
+import { getFirestore, doc, getDoc, getDocs, setDoc, addDoc, collection, query, where } from "firebase/firestore";
 
 
 const firebaseConfig = {
@@ -19,6 +19,7 @@ const auth = getAuth();
 const db = getFirestore();
 
 var state = {};
+const liReducer = (a,b) => `${a}\n${b}`;
 
 const initializeState = () => {
     let now = new Date();
@@ -136,7 +137,7 @@ async function renderBudgetById(budgetId) {
 
         <div id="expenses-container">
             <ul>
-                ${currentWeekExpenses.map((expense) => `<li>Name: ${expense.name} Amount: \$${expense.amount} Date: ${expense.date.toDate().toDateString()}</li>`).reduce((a,b) => `${a}\n${b}`)}
+                ${currentWeekExpenses.map((expense) => `<li>Name: ${expense.name} Amount: \$${expense.amount} Date: ${expense.date.toDate().toDateString()}</li>`).reduce(liReducer)}
             </ul>
         </div>
         
@@ -144,7 +145,7 @@ async function renderBudgetById(budgetId) {
             <button id="see-all-budgets">See All Budgets</button>
             <button id="manage-budget-access">Manage Budget Access</button>
         </div>
-    `
+    `;
 
     renderView(budgetView);
 
@@ -155,7 +156,35 @@ async function renderBudgetById(budgetId) {
 }
 
 async function renderAllBudgets() {
+    const allBudgetQuery = query(collection(db, "budgets"), where("emails", "array-contains", state.email));
+    const budgets = await getDocs(allBudgetQuery);
 
+    const allBudgetsView = `
+        <div id="header>
+            <h1 id="title">Weekly Budgeter</h1>
+        </div>
+
+        <div id="all-budgets-conatiner">
+            <ul>
+                ${budgets.map((budget) => { 
+                        return {...budget.data(), id: budget.id}
+                    }).map((budgetData) => {
+                        return `<li id="budget-${budgetData.id} class="budget-list-item"> Name: ${budgetData.name} Limit: \$${budgetData.limit} </li>`
+                    }).reduce(liReducer)
+                }
+            </ul>
+        </div>
+    `;
+    budgets.forEach((budget) => {
+        document.getElementById(`budget-${budget.id}`).addEventListener("click", () => {
+            state = {
+                ...state,
+                budgetId: budget.id,
+                budgetData: budget.data(),
+            };
+            renderBudgetById(budget.id);
+        });
+    });
 };
 
 async function renderBudgetAccessManager() {

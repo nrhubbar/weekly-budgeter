@@ -137,7 +137,7 @@ async function renderBudgetById(budgetId) {
 
         <div id="expenses-container">
             <ul>
-                ${currentWeekExpenses.map((expense) => `<li>Name: ${expense.name} Amount: \$${expense.amount} Date: ${expense.date.toDate().toDateString()}</li>`).reduce(liReducer)}
+                ${currentWeekExpenses.map((expense) => `<li>Name: ${expense.name} Amount: \$${expense.amount} Date: ${expense.date.toDate().toDateString()}</li>`).reduce(liReducer, "No Data")}
             </ul>
         </div>
         
@@ -159,6 +159,8 @@ async function renderAllBudgets() {
     const allBudgetQuery = query(collection(db, "budgets"), where("emails", "array-contains", state.email));
     const budgets = await getDocs(allBudgetQuery);
 
+    console.dir(budgets);
+
     const allBudgetsView = `
         <div id="header>
             <h1 id="title">Weekly Budgeter</h1>
@@ -166,15 +168,18 @@ async function renderAllBudgets() {
 
         <div id="all-budgets-conatiner">
             <ul>
-                ${budgets.map((budget) => { 
+                ${budgets.docs.map((budget) => { 
                         return {...budget.data(), id: budget.id}
                     }).map((budgetData) => {
-                        return `<li id="budget-${budgetData.id} class="budget-list-item"> Name: ${budgetData.name} Limit: \$${budgetData.limit} </li>`
+                        return `<li id="budget-${budgetData.id}" class="budget-list-item"> Name: ${budgetData.name} Limit: \$${budgetData.limit} </li>`
                     }).reduce(liReducer)
                 }
             </ul>
         </div>
     `;
+
+    renderView(allBudgetsView);
+
     budgets.forEach((budget) => {
         document.getElementById(`budget-${budget.id}`).addEventListener("click", () => {
             state = {

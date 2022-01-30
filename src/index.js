@@ -137,7 +137,7 @@ async function renderBudgetById(budgetId) {
 
         <div id="expenses-container">
             <ul>
-                ${currentWeekExpenses.map((expense) => `<li>Name: ${expense.name} Amount: \$${expense.amount} Date: ${expense.date.toDate().toDateString()}</li>`).reduce(liReducer, "No Data")}
+                ${currentWeekExpenses.map((expense) => `<li>Name: ${expense.name} Amount: \$${expense.amount} Date: ${expense.date.toDate().toDateString()}</li>`).reduce(liReducer, "") || "No Entries"}
             </ul>
         </div>
         

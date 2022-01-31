@@ -402,6 +402,7 @@ const renderLogin = () => {
                         state = {
                             ...state,
                             budgetId: userDocument.data().favoriteBudget,
+                            favoriteBudgetId: userDocument.data().favoriteBudget,
                         };
 
                         renderBudgetById(userDocument.data().favoriteBudget);

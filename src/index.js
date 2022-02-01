@@ -1,4 +1,4 @@
-import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { getAuth, signInWithPopup, GoogleAuthProvider, browserLocalPersistence } from "firebase/auth";
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, getDoc, getDocs, setDoc, addDoc, collection, query, where } from "firebase/firestore";
 
@@ -16,6 +16,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const provider = new GoogleAuthProvider();
 const auth = getAuth();
+auth.setPersistence(browserLocalPersistence);
 const db = getFirestore();
 
 var state = {};
@@ -85,7 +86,7 @@ async function addExpense() {
         const expense = {
             date: new Date(),
             name: document.getElementById("expense-name").value,
-            amount: parseInt(document.getElementById("expense-amount").value),
+            amount: Math.floor(new Number(document.getElementById("expense-amount").value) * 100),
         };
 
         const budgetReference = doc(db, "budgets", state.budgetId);
@@ -124,11 +125,11 @@ async function renderBudgetById(budgetId=state.budgetId) {
         
         return inRange;
     });
-    const remainingBudget = budgetDocument.data().limit - currentWeekExpenses.map((expense) => expense.amount)
-        .reduce((a, b) => a + b, 0);
+    const remainingBudget = (budgetDocument.data().limit - currentWeekExpenses.map((expense) => expense.amount)
+        .reduce((a, b) => a + b, 0)) / 100;
 
     const budgetView = `
-        <div id="header>
+        <div id="header">
             <h1 id="title">Weekly Budgeter</h1>
         </div>
 
@@ -142,7 +143,7 @@ async function renderBudgetById(budgetId=state.budgetId) {
 
         <div id="expenses-container">
             <ul>
-                ${currentWeekExpenses.map((expense) => `<li>Name: ${expense.name} Amount: \$${expense.amount} Date: ${expense.date.toDate().toDateString()}</li>`).reduce(liReducer, "") || "No Entries"}
+                ${currentWeekExpenses.map((expense) => `<li>Name: ${expense.name} Amount: \$${expense.amount / 100} Date: ${expense.date.toDate().toDateString()}</li>`).reduce(liReducer, "") || "No Entries"}
             </ul>
         </div>
         
@@ -170,7 +171,7 @@ async function renderAllBudgets() {
     const budgets = await getDocs(allBudgetQuery);
 
     const allBudgetsView = `
-        <div id="header>
+        <div id="header">
             <h1 id="title">Weekly Budgeter</h1>
         </div>
 
@@ -195,7 +196,7 @@ async function renderAllBudgets() {
                     .map((budgetData) => {
                         return `
                             <li class="budget-list-item favorite-budget">
-                                Name: ${budgetData.name} Limit: \$${budgetData.limit}
+                                Name: ${budgetData.name} Limit: \$${budgetData.limit / 100}
                                 <button id="view-budget-${budgetData.id}" class="view-budget">View</button>
                             </li>
                         `;
@@ -250,7 +251,7 @@ async function renderBudgetAccessManager() {
                 <button id="submit-email"> Add Email </button>
             </div>
 
-            <button id="cancel-budget-access-manager">Cancel</button>
+            <button id="done-budget-access-manager">Done</button>
         </div>
     `;
 
@@ -297,7 +298,7 @@ async function renderBudgetAccessManager() {
         renderBudgetAccessManager();
     });
     
-    document.getElementById("cancel-budget-access-manager").addEventListener("click", () => {
+    document.getElementById("done-budget-access-manager").addEventListener("click", () => {
         renderBudgetById();
     });
 };
@@ -305,7 +306,7 @@ async function renderBudgetAccessManager() {
 async function renderNewAccount() {
     const newAccountView = `
         <div id="header">
-            <h1 id="title>Weekly Budget</h1>
+            <h1 id="title">Weekly Budget</h1>
         </div>
         <div id="new-account-container">
             <h2>No budgets found</h2>
@@ -335,7 +336,7 @@ async function renderNewAccount() {
     document.getElementById("create-new-budget").addEventListener("click", async function() {
         const newBudget = {
             name: document.getElementById("budget-name").value,
-            limit: document.getElementById("budget-limit").value,
+            limit: Math.floor(new Number(document.getElementById("budget-limit").value) * 100),
             emails: [document.getElementById("additional-email").value, state.email],
             expenses: [],
         };
@@ -358,6 +359,65 @@ async function renderNewAccount() {
     document.getElementById("sign-out").addEventListener("click", signOut);
 };
 
+const executeLogin = async (user) => {
+    
+    state = {
+        ...state,
+        "userId": user.uid,
+        "email": user.email,
+    };
+
+    renderLoadingPage();
+    
+    const userDocumentReference = doc(db, "users", user.uid);
+    const userDocument = await getDoc(userDocumentReference);
+
+    if (userDocument.exists()) {
+        console.log("User has an account.");
+
+        if (userDocument.data().favoriteBudget) {
+
+            // Check Access to Favorite Budget
+            const favoriteBudgetRefernce = doc(db, "budgets", userDocument.data().favoriteBudget);
+            const favoriteBudget = await getDoc(favoriteBudgetRefernce);
+
+            if (favoriteBudget.data().emails.includes(state.email)) {
+                state = {
+                    ...state,
+                    budgetId: userDocument.data().favoriteBudget,
+                    favoriteBudgetId: userDocument.data().favoriteBudget,
+                };
+
+                renderBudgetById(userDocument.data().favoriteBudget);
+                return;
+            }
+        }
+    }
+    console.log("User does NOT have an account, creating one.");
+    
+    const newUserExistingBudgetsQuery = query(collection(db, "budgets"), where("emails", "array-contains", state.email));
+    const existingBudgets = await getDocs(newUserExistingBudgetsQuery);
+    
+    if (existingBudgets.size > 0) {
+        const favoriteBudgetId = existingBudgets.docs[0].id;
+        await setDoc(userDocumentReference, {
+            favoriteBudget: favoriteBudgetId,
+        });
+
+        state = {
+            ...state,
+            budgetId: favoriteBudgetId,
+            favoriteBudgetId: favoriteBudgetId,
+        };
+
+        renderBudgetById(favoriteBudgetId);
+    } else {
+        await setDoc(userDocumentReference, {});
+        renderNewAccount();
+    }
+  // ...
+};
+
 const renderLogin = () => {
     const loginView = `
         <div id="header">
@@ -372,68 +432,7 @@ const renderLogin = () => {
     renderView(loginView);
 
     document.getElementById("login").addEventListener("click", () => {
-        signInWithPopup(auth, provider).then(async (result) => {
-            // This gives you a Google Access Token. You can use it to access the Google API.
-            const credential = GoogleAuthProvider.credentialFromResult(result);
-            const token = credential.accessToken;
-            // The signed-in user info.
-            const user = result.user;
-            state = {
-                ...state,
-                "userId": user.uid,
-                "email": user.email,
-            };
-
-            renderLoadingPage();
-            
-            const userDocumentReference = doc(db, "users", user.uid);
-            const userDocument = await getDoc(userDocumentReference);
-
-            if (userDocument.exists()) {
-                console.log("User has an account.");
-
-                if (userDocument.data().favoriteBudget) {
-
-                    // Check Access to Favorite Budget
-                    const favoriteBudgetRefernce = doc(db, "budgets", userDocument.data().favoriteBudget);
-                    const favoriteBudget = await getDoc(favoriteBudgetRefernce);
-
-                    if (favoriteBudget.data().emails.includes(state.email)) {
-                        state = {
-                            ...state,
-                            budgetId: userDocument.data().favoriteBudget,
-                            favoriteBudgetId: userDocument.data().favoriteBudget,
-                        };
-
-                        renderBudgetById(userDocument.data().favoriteBudget);
-                        return;
-                    }
-                }
-            }
-            console.log("User does NOT have an account, creating one.");
-            
-            const newUserExistingBudgetsQuery = query(collection(db, "budgets"), where("emails", "array-contains", state.email));
-            const existingBudgets = await getDocs(newUserExistingBudgetsQuery);
-            
-            if (existingBudgets.size > 0) {
-                const favoriteBudgetId = existingBudgets.docs[0].id;
-                await setDoc(userDocumentReference, {
-                    favoriteBudget: favoriteBudgetId,
-                });
-
-                state = {
-                    ...state,
-                    budgetId: favoriteBudgetId,
-                    favoriteBudgetId: favoriteBudgetId,
-                };
-
-                renderBudgetById(favoriteBudgetId);
-            } else {
-                await setDoc(userDocumentReference, {});
-                renderNewAccount();
-            }
-          // ...
-        }).catch((error) => {
+        signInWithPopup(auth, provider).then((result) => executeLogin(result.user)).catch((error) => {
           // Handle Errors here.
           const errorCode = error.code;
           const errorMessage = error.message;
@@ -446,5 +445,18 @@ const renderLogin = () => {
     });
 };
 
+const startApp = () => {
+
+    renderLoadingPage();
+
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            executeLogin(user);
+        } else {
+            renderLogin();
+        }
+    });
+};
+
 initializeState();
-renderLogin();
+startApp();

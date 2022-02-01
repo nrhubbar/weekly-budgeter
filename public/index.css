@@ -1,0 +1,65 @@
+:root {
+    --bg-color: hsl(208, 12%, 90%);
+    --font-color: hsl(208, 67%, 50%);
+}
+
+body {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 300;
+    line-height: 1.2;
+    background-color: var(--bg-color);
+    color: var(--font-color);
+}
+
+#title {
+    display: flex;
+    font-weight: 150;
+    font-size: 7.5vh;
+    line-height: 0.75;
+    justify-content: center;
+}
+
+#login-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+}
+
+button#login {
+    order: 1;
+    flex-grow: 2;
+    margin: 15%;
+    border-radius: 6px;
+
+    font-weight: 150;
+    font-size: 3vh;
+    line-height: 1.333;
+    border: none;
+
+    background-color: hsl(148 , 55% , 37%);
+    color: var(--bg-color);
+
+    cursor: pointer;
+}
+
+#remaining-budget-container {
+    display: flex;
+    justify-content: center;
+}
+
+#remaining-budget {
+    
+
+
+    font-weight: 200;
+    font-size: 6vh;
+    line-height: 1;
+}
+
+#remaining-budget.under-budget {
+    color: hsl(148 , 55% , 37%);
+}
+
+#remaining-budget.over-budget {
+    color: hsl(358, 55% , 37%)
+}

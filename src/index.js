@@ -1,6 +1,6 @@
 import { getAuth, signInWithPopup, GoogleAuthProvider, browserLocalPersistence } from "firebase/auth";
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, getDoc, getDocs, setDoc, addDoc, collection, query, where } from "firebase/firestore";
+import { getFirestore, doc, getDoc, getDocs, setDoc, addDoc, collection, query, where, enableIndexedDbPersistence } from "firebase/firestore";
 
 
 const firebaseConfig = {
@@ -18,6 +18,20 @@ const provider = new GoogleAuthProvider();
 const auth = getAuth();
 auth.setPersistence(browserLocalPersistence);
 const db = getFirestore();
+enableIndexedDbPersistence(db)
+  .catch((err) => {
+      if (err.code == 'failed-precondition') {
+          // Multiple tabs open, persistence can only be enabled
+          // in one tab at a a time.
+          // ...
+          console.log("Multiple Table Open");
+          renderErrorPage();
+      } else if (err.code == 'unimplemented') {
+          // The current browser does not support all of the
+          // features required to enable persistence
+          // ...
+      }
+  });
 
 var state = {};
 const liReducer = (a,b) => `${a}\n${b}`;

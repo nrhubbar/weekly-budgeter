@@ -156,9 +156,28 @@ async function renderBudgetById(budgetId=state.budgetId) {
         </div>
 
         <div id="expenses-container">
-            <ul>
-                ${currentWeekExpenses.map((expense) => `<li>Name: ${expense.name} Amount: \$${expense.amount / 100} Date: ${expense.date.toDate().toDateString()}</li>`).reduce(liReducer, "") || "No Entries"}
-            </ul>
+            <table id="expenses-table">
+
+                <thead id="expenses-header">
+                    <th>Name</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                    <th></th>
+                </thead>
+                <tbody id="expenses-body">
+                    ${currentWeekExpenses.map((expense, i) => 
+                        `<tr id="expense-row-${i}">
+                            <td id="expense-name-${i}">${expense.name}</td>
+                            <td id="expense-amount=${i}">\$${expense.amount / 100}</td>
+                            <td id="expense-date-${i}">${expense.date.toDate().toDateString()}
+                            <td id="expense-buttons-${i}">
+                                <button id="edit-expense-${i}">Edit</button>
+                                <button id="delete-expense-${i}">Delete</button>
+                            </td>
+                        </tr>`).reduce(liReducer, "") || `<tr id="no-expenses"><td colspan=4>No Expenses Found for Date Range</td></tr>`}
+                        
+                </tbody>
+            </table>
         </div>
         
         <div id="navigate-buttons">

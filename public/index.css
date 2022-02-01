@@ -63,3 +63,26 @@ button#login {
 #remaining-budget.over-budget {
     color: hsl(358, 55% , 37%)
 }
+
+#expenses-container {
+    display: flex;
+    justify-content: center;
+    overflow-x: scroll;
+}
+
+#expenses-table {
+    display: block;
+    min-width: 1vw;
+    height: 30vh;
+    overflow-y: scroll;
+}
+
+#expenses-header {
+    position: sticky;
+    top: 0;
+    background: var(--bg-color);
+}
+
+#expenses-body {
+    white-space: nowrap;
+}

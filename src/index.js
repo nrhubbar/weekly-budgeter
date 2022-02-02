@@ -81,8 +81,10 @@ const renderErrorPage = () => {
 }
 
 const submitNewExpense = async () => {
+    const dateArray = document.getElementById("new-expense-date").value.split('-');
+    const expenseDate = dateArray.length == 3 ? new Date(dateArray[0], dateArray[1] - 1, dateArray[2]) : new Date();
     const expense = {
-        date: document.getElementById("new-expense-date").valueAsDate || new Date(),
+        date: expenseDate,
         name: document.getElementById("new-expense-name").value,
         amount: Math.floor(new Number(document.getElementById("new-expense-amount").value) * 100),
     };

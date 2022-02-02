@@ -67,6 +67,13 @@ const initializeState = () => {
     };
 }
 
+const sanitizeStringForHTML = (input) => {
+    return input.replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 const renderView = (html) => {
     document.getElementById("app").innerHTML = html;
 };
@@ -174,7 +181,7 @@ async function renderBudgetById(budgetId=state.budgetId) {
                 <tbody id="expenses-body">
                     ${currentWeekExpenses.map((expense, i) => 
                         `<tr id="expense-row-${i}">
-                            <td id="expense-name-${i}">${expense.name}</td>
+                            <td id="expense-name-${i}">${sanitizeStringForHTML(expense.name)}</td>
                             <td id="expense-amount-${i}">\$${expense.amount / 100}</td>
                             <td id="expense-date-${i}">${expense.date.toDate().toDateString()}</td>
                             <td id="expense-status-${i}" class="expense-status">${expenseStatusMap[expense.status] || expense.status}</td>
@@ -252,7 +259,7 @@ async function renderBudgetById(budgetId=state.budgetId) {
         document.getElementById(`edit-expense-${i}`).addEventListener("click", () => {
             document.getElementById(`expense-row-${i}`).innerHTML = `
             <td id="expense-edit-name-${i}-cell">
-                <input type="text" value="${expense.name}" id="edit-expense-name-${i}">
+                <input type="text" value="${sanitizeStringForHTML(expense.name)}" id="edit-expense-name-${i}">
             </td>
             <td id="expense-edit-amount-${i}-cell">
                 <input type="number" value="${expense.amount / 100}" step="0.01" min="0" id="edit-expense-amount-${i}">
@@ -318,7 +325,7 @@ async function renderAllBudgets() {
                     .map((budgetData) => {
                         return `
                             <li class="budget-list-item">
-                                Name: ${budgetData.name} Limit: \$${budgetData.limit}
+                                Name: ${sanitizeStringForHTML(budgetData.name)} Limit: \$${budgetData.limit}
                                 <button id="view-budget-${budgetData.id}" class="view-budget">View</button>
                                 <button id="mark-favorite-${budgetData.id}" class="mark-favorite">Mark Favorite</button>
                             </li>
@@ -331,7 +338,7 @@ async function renderAllBudgets() {
                     .map((budgetData) => {
                         return `
                             <li class="budget-list-item favorite-budget">
-                                Name: ${budgetData.name} Limit: \$${budgetData.limit / 100}
+                                Name: ${sanitizeStringForHTML(budgetData.name)} Limit: \$${budgetData.limit / 100}
                                 <button id="view-budget-${budgetData.id}" class="view-budget">View</button>
                             </li>
                         `;
@@ -376,7 +383,7 @@ async function renderBudgetAccessManager() {
         <div id="budget-access-manager-container">
             <h2>Manage Access</h2>
             <ul>
-                ${filteredEmailList.map((email, i) => `<li> ${email} <button id="remove-${i}" class="remove-email">Remove</button>`).reduce(liReducer, "") || "No Emails"}
+                ${filteredEmailList.map((email, i) => `<li> ${sanitizeStringForHTML(email)} <button id="remove-${i}" class="remove-email">Remove</button>`).reduce(liReducer, "") || "No Emails"}
             </ul>
 
             <div id="add-email-container">

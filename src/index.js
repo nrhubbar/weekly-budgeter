@@ -114,11 +114,16 @@ async function renderBudgetById(budgetId=state.budgetId) {
         budgetData: budgetDocument.data(),
     };
     
-    const currentWeekExpenses = budgetDocument.data().expenses.filter((expense) => {
-        const expenseDate = expense.date.toDate();
-        const inRange = expenseDate >= state.weekStart && expenseDate < state.weekEnd
-        
-        return inRange;
+    const currentWeekExpenses = budgetDocument.data().expenses.map((expense, i) => { 
+            return {
+                ...expense,
+                id: i,
+            };
+        }).filter((expense) => {
+            const expenseDate = expense.date.toDate();
+            const inRange = expenseDate >= state.weekStart && expenseDate < state.weekEnd
+            
+            return inRange;
     });
     const remainingBudget = (budgetDocument.data().limit - currentWeekExpenses.map((expense) => expense.amount)
         .reduce((a, b) => a + b, 0)) / 100;
@@ -145,7 +150,7 @@ async function renderBudgetById(budgetId=state.budgetId) {
                     ${currentWeekExpenses.map((expense, i) => 
                         `<tr id="expense-row-${i}">
                             <td id="expense-name-${i}">${expense.name}</td>
-                            <td id="expense-amount=${i}">\$${expense.amount / 100}</td>
+                            <td id="expense-amount-${i}">\$${expense.amount / 100}</td>
                             <td id="expense-date-${i}">${expense.date.toDate().toDateString()}
                             <td id="expense-buttons-${i}">
                                 <button id="delete-expense-${i}" class="delete-expense">Delete</button>
@@ -187,6 +192,70 @@ async function renderBudgetById(budgetId=state.budgetId) {
     document.getElementById("manage-budget-access").addEventListener("click", renderBudgetAccessManager);
     document.getElementById("sign-out").addEventListener("click", signOut);
     document.getElementById("submit-new-expense").addEventListener("click", submitNewExpense);
+
+    currentWeekExpenses.forEach((expense, i) => {
+        document.getElementById(`delete-expense-${i}`).addEventListener("click", () => {
+            document.getElementById(`expense-buttons-${i}`).innerHTML = `
+                <button id="submit-expense-delete-${i}">Submit Delete</button>
+                <button id="cancel-expense-delete-${i}">Cancel</button>
+            `
+            document.getElementById(`submit-expense-delete-${i}`).addEventListener("click", () => {
+                const updatedExpenses = state.budgetData.expenses.filter((e, i) => i != expense.id);
+
+                const budgetReference = doc(db, "budgets", state.budgetId);
+                setDoc(budgetReference, {
+                    ...state.budgetData,
+                    expenses: updatedExpenses,
+                });
+
+                renderBudgetById(state.budgetId);
+            });
+
+            document.getElementById(`cancel-expense-delete-${i}`).addEventListener("click", () => {
+                renderBudgetById(state.budgetId);
+            });
+        });
+        document.getElementById(`edit-expense-${i}`).addEventListener("click", () => {
+            document.getElementById(`expense-row-${i}`).innerHTML = `
+            <td id="expense-edit-name-${i}-cell">
+                <input type="text" value="${expense.name}" id="edit-expense-name-${i}">
+            </td>
+            <td id="expense-edit-amount-${i}-cell">
+                <input type="number" value="${expense.amount / 100}" step="0.01" min="0" id="edit-expense-amount-${i}">
+            </td>
+            <td id="expense-edit-date-cell-${i}">
+                <input type="date" value="${expense.date.toDate().toISOString().split('T')[0]}" id="edit-expense-date-${i}">
+            </td>
+            <td id="expenses-submit-cell">
+                <button id="submit-expense-edit-${i}">Submit</button>
+                <button id="cancel-expense-edit-${i}">Cancel</button>
+            </td>
+            `
+            document.getElementById(`submit-expense-edit-${i}`).addEventListener("click", () => {
+                const dateArray = document.getElementById(`edit-expense-date-${i}`).value.split('-');
+                const expenseDate = dateArray.length == 3 ? new Date(dateArray[0], dateArray[1] - 1, dateArray[2]) : new Date();
+
+                let updatedExpenses = [...state.budgetData.expenses];
+                updatedExpenses[expense.id] = {
+                    date: expenseDate,
+                    name: document.getElementById(`edit-expense-name-${i}`).value,
+                    amount: Math.floor(new Number(document.getElementById(`edit-expense-amount-${i}`).value) * 100),
+                }
+
+                const budgetReference = doc(db, "budgets", state.budgetId);
+                setDoc(budgetReference, {
+                    ...state.budgetData,
+                    expenses: updatedExpenses,
+                });
+
+                renderBudgetById(state.budgetId);
+            });
+
+            document.getElementById(`cancel-expense-edit-${i}`).addEventListener("click", () => {
+                renderBudgetById(state.budgetId);
+            });
+        });
+    });
 }
 
 async function renderAllBudgets() {

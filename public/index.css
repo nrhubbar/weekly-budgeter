@@ -1,6 +1,8 @@
 :root {
     --bg-color: hsl(208, 12%, 90%);
     --font-color: hsl(208, 67%, 50%);
+    --green-color: hsl(148 , 55% , 37%);
+    --red-color: hsl(358, 55% , 37%);
 }
 
 body {
@@ -36,7 +38,7 @@ button#login {
     line-height: 1.333;
     border: none;
 
-    background-color: hsl(148 , 55% , 37%);
+    background-color: var(--green-color);
     color: var(--bg-color);
 
     cursor: pointer;
@@ -48,20 +50,17 @@ button#login {
 }
 
 #remaining-budget {
-    
-
-
     font-weight: 200;
     font-size: 6vh;
     line-height: 1;
 }
 
 #remaining-budget.under-budget {
-    color: hsl(148 , 55% , 37%);
+    color: var(--green-color);
 }
 
 #remaining-budget.over-budget {
-    color: hsl(358, 55% , 37%)
+    color: var(--red-color);
 }
 
 #expenses-container {
@@ -83,6 +82,96 @@ button#login {
     background: var(--bg-color);
 }
 
+#expenses-footer {
+    position: sticky;
+    bottom: 0;
+    background: var(--bg-color);
+}
+
 #expenses-body {
     white-space: nowrap;
+}
+
+#loading-container {
+    display: flex;
+    justify-content: center;
+}
+
+#sign-out-container {
+    display: flex;
+    justify-content: left;
+    margin-top: 20vh;
+}
+
+button#sign-out {
+    width: 15vh;
+    border-radius: 6px;
+
+    font-weight: 150;
+    font-size: 1.5vh;
+    line-height: 1.333;
+    border: none;
+
+    background-color: var(--red-color);
+    color: var(--bg-color);
+
+    cursor: pointer;
+}
+
+#navigate-buttons > button {
+    
+    border-radius: 6px;
+
+    font-weight: 150;
+    font-size: 2vh;
+    line-height: 1.333;
+    border: none;
+
+    background-color: var(--font-color);
+    color: var(--bg-color);
+
+    cursor: pointer;
+}
+
+.edit-expense {
+    border-radius: 6px;
+
+    font-weight: 150;
+    font-size: 1.5vh;
+    line-height: 1.333;
+    border: none;
+
+    background-color: var(--font-color);
+    color: var(--bg-color);
+
+    cursor: pointer;
+}
+
+.delete-expense {
+    border-radius: 6px;
+
+    font-weight: 150;
+    font-size: 1.5vh;
+    line-height: 1.333;
+    border: none;
+
+    background-color: var(--red-color);
+    color: var(--bg-color);
+
+    cursor: pointer;
+}
+
+#submit-new-expense {
+    border-radius: 6px;
+    width: 100%;
+
+    font-weight: 150;
+    font-size: 2vh;
+    line-height: 1.333;
+    border: none;
+
+    background-color: var(--green-color);
+    color: var(--bg-color);
+
+    cursor: pointer;
 }

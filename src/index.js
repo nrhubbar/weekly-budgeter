@@ -80,44 +80,23 @@ const renderErrorPage = () => {
     auth.signOut();
 }
 
-async function addExpense() {
-    const addExpenseView = `
-        <label for="expense-name">Name: </label>
-        <input type="text" id="expense-name">
+const submitNewExpense = async () => {
+    const expense = {
+        date: document.getElementById("new-expense-date").valueAsDate || new Date(),
+        name: document.getElementById("new-expense-name").value,
+        amount: Math.floor(new Number(document.getElementById("new-expense-amount").value) * 100),
+    };
 
-        <label for="expense-amount">Amount: </label>
-        <input type="number" min="0" id="expense-amount">
-
-        <div id="add-expense-buttons">
-            <button id="submit-expense">Submit</button>
-            <button id="cancel-expense">Cancel</button>
-        </div>
-    `;
-
-    document.getElementById("add-expense-container").innerHTML = addExpenseView;
-
-    document.getElementById("submit-expense").addEventListener("click", () => {
-        const expense = {
-            date: new Date(),
-            name: document.getElementById("expense-name").value,
-            amount: Math.floor(new Number(document.getElementById("expense-amount").value) * 100),
-        };
-
-        const budgetReference = doc(db, "budgets", state.budgetId);
-        setDoc(budgetReference, {
-            ...state.budgetData,
-            expenses: [
-                ...state.budgetData.expenses,
-                expense,
-            ]
-        });
-
-        renderBudgetById(state.budgetId);
+    const budgetReference = doc(db, "budgets", state.budgetId);
+    setDoc(budgetReference, {
+        ...state.budgetData,
+        expenses: [
+            ...state.budgetData.expenses,
+            expense,
+        ]
     });
 
-    document.getElementById("cancel-expense").addEventListener("click", () => {
-        renderBudgetById();
-    });
+    renderBudgetById(state.budgetId);
 };
 
 async function renderBudgetById(budgetId=state.budgetId) {
@@ -151,10 +130,6 @@ async function renderBudgetById(budgetId=state.budgetId) {
             <h2 id="remaining-budget" class="${remainingBudget >= 0 ? "under-budget" : "over-budget"}">\$${remainingBudget}</h2>
         </div>
 
-        <div id="add-expense-container">
-            <button id="add-expense">+ Add Expense</button>
-        </div>
-
         <div id="expenses-container">
             <table id="expenses-table">
 
@@ -171,12 +146,26 @@ async function renderBudgetById(budgetId=state.budgetId) {
                             <td id="expense-amount=${i}">\$${expense.amount / 100}</td>
                             <td id="expense-date-${i}">${expense.date.toDate().toDateString()}
                             <td id="expense-buttons-${i}">
-                                <button id="edit-expense-${i}">Edit</button>
-                                <button id="delete-expense-${i}">Delete</button>
+                                <button id="delete-expense-${i}" class="delete-expense">Delete</button>
+                                <button id="edit-expense-${i}" class="edit-expense">Edit</button>
                             </td>
                         </tr>`).reduce(liReducer, "") || `<tr id="no-expenses"><td colspan=4>No Expenses Found for Date Range</td></tr>`}
                         
                 </tbody>
+                <tfoot id="expenses-footer">
+                    <td id="expenses-name-cell">
+                        <input type="text" placeholder="New Expense Name" id="new-expense-name">
+                    </td>
+                    <td id="expenses-amount-cell">
+                        <input type="number" placeholder="$420.69" step="0.01" min="0" id="new-expense-amount">
+                    </td>
+                    <td id="expenses-date-cell">
+                        <input type="date" id="new-expense-date">
+                    </td>
+                    <td id="expenses-submit-cell">
+                        <button id="submit-new-expense">Submit</button>
+                    </td>
+                </tfoot>
             </table>
         </div>
         
@@ -192,11 +181,10 @@ async function renderBudgetById(budgetId=state.budgetId) {
 
     renderView(budgetView);
 
-    
-    document.getElementById("add-expense").addEventListener("click", addExpense);
     document.getElementById("see-all-budgets").addEventListener("click", renderAllBudgets);
     document.getElementById("manage-budget-access").addEventListener("click", renderBudgetAccessManager);
     document.getElementById("sign-out").addEventListener("click", signOut);
+    document.getElementById("submit-new-expense").addEventListener("click", submitNewExpense);
 }
 
 async function renderAllBudgets() {

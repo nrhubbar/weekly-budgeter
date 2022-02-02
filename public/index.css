@@ -81,7 +81,7 @@ button#login {
 #expenses-table {
     display: block;
     min-width: 1vw;
-    height: 30vh;
+    height: 50%;
     overflow-y: scroll;
 }
 

@@ -55,12 +55,21 @@ button#login {
     line-height: 1;
 }
 
-#remaining-budget.under-budget {
+.under-budget {
     color: var(--green-color);
 }
 
-#remaining-budget.over-budget {
+.over-budget {
     color: var(--red-color);
+}
+
+#budget-sums-container {
+    display: flex;
+    flex-direction: row;
+}
+
+#budget-sums-container > p {
+    flex: auto;
 }
 
 #expenses-container {
@@ -92,6 +101,11 @@ button#login {
     white-space: nowrap;
 }
 
+.expense-status {
+    display: flex;
+    justify-content: center;
+}
+
 #loading-container {
     display: flex;
     justify-content: center;
@@ -103,75 +117,65 @@ button#login {
     margin-top: 20vh;
 }
 
-button#sign-out {
-    width: 15vh;
-    border-radius: 6px;
-
+button {
+    cursor: pointer;
+    
+    color: var(--bg-color);
+    
+    font-size: 4vw;
     font-weight: 150;
-    font-size: 1.5vh;
     line-height: 1.333;
+
     border: none;
+    border-radius: 6px;
+}
+
+button#sign-out {
+    width: 20%;
+    
+    font-size: 3.5vw;    
 
     background-color: var(--red-color);
-    color: var(--bg-color);
-
-    cursor: pointer;
 }
 
 #navigate-buttons > button {
-    
-    border-radius: 6px;
-
-    font-weight: 150;
-    font-size: 2vh;
-    line-height: 1.333;
-    border: none;
-
     background-color: var(--font-color);
-    color: var(--bg-color);
-
-    cursor: pointer;
 }
 
-.edit-expense {
-    border-radius: 6px;
-
-    font-weight: 150;
-    font-size: 1.5vh;
-    line-height: 1.333;
-    border: none;
-
-    background-color: var(--font-color);
-    color: var(--bg-color);
-
-    cursor: pointer;
+.table-button {
+    font-size: 3vw;
 }
 
-.delete-expense {
-    border-radius: 6px;
+button.edit-expense {
+    background-color: var(--font-color);
+}
 
-    font-weight: 150;
-    font-size: 1.5vh;
-    line-height: 1.333;
-    border: none;
-
+button.delete-expense {
     background-color: var(--red-color);
-    color: var(--bg-color);
-
-    cursor: pointer;
 }
 
-#submit-new-expense {
-    border-radius: 6px;
+#expenses-status-cell {
+    display: flex;
+}
+
+button#submit-new-expense {
     width: 100%;
 
-    font-weight: 150;
-    font-size: 2vh;
-    line-height: 1.333;
-    border: none;
-
     background-color: var(--green-color);
-    color: var(--bg-color);
+}
 
-    cursor: pointer;
+button.submit-delete {
+    background-color: var(--red-color);
+}
+
+button.cancel-delete {
+    background-color: var(--font-color);
+}
+
+button.submit-edit {
+    background-color: var(--green-color);
+}
+
+button.cancel-edit {
+    background-color: var(--red-color);
 }

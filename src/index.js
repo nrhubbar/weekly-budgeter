@@ -13,6 +13,11 @@ const firebaseConfig = {
     appId: "1:199823933355:web:6bfb59099ce48e5c5b9cee"
 };
 
+const expenseStatusMap = {
+    "PAID": "Paid",
+    "PLANNED": "Planned",
+};
+
 const app = initializeApp(firebaseConfig);
 const provider = new GoogleAuthProvider();
 const auth = getAuth();
@@ -87,6 +92,7 @@ const submitNewExpense = async () => {
         date: expenseDate,
         name: document.getElementById("new-expense-name").value,
         amount: Math.floor(new Number(document.getElementById("new-expense-amount").value) * 100),
+        status: Array.from(document.getElementsByName("new-expense-status")).find((radio) => radio.checked).value,
     };
 
     const budgetReference = doc(db, "budgets", state.budgetId);
@@ -125,8 +131,14 @@ async function renderBudgetById(budgetId=state.budgetId) {
             
             return inRange;
     });
-    const remainingBudget = (budgetDocument.data().limit - currentWeekExpenses.map((expense) => expense.amount)
-        .reduce((a, b) => a + b, 0)) / 100;
+
+    const paidSum = currentWeekExpenses.filter((expense) => expense.status == "PAID")
+        .map((expense) => expense.amount)
+        .reduce((a, b) => a + b, 0);
+    const plannedSum = currentWeekExpenses.map((expense) => expense.amount)
+        .reduce((a, b) => a + b, 0);
+    const remainingBudget = (budgetDocument.data().limit - paidSum) / 100;
+    const plannedRemaining = (budgetDocument.data().limit - plannedSum) / 100;
 
     const budgetView = `
         <div id="header">
@@ -137,6 +149,12 @@ async function renderBudgetById(budgetId=state.budgetId) {
             <h2 id="remaining-budget" class="${remainingBudget >= 0 ? "under-budget" : "over-budget"}">\$${remainingBudget}</h2>
         </div>
 
+        <div id="budget-sums-container">
+            <p id="paid-sum"> Paid Sum: \$${paidSum / 100}</p>
+            <p id="planned-remaining" class="${plannedRemaining >= 0 ? "under-budget" : "over-budget"}">Planned Remaining: \$${plannedRemaining}</p>
+            <p id="planned-sum"> Planned Sum: \$${plannedSum / 100} </p>
+        </div>
+
         <div id="expenses-container">
             <table id="expenses-table">
 
@@ -144,6 +162,7 @@ async function renderBudgetById(budgetId=state.budgetId) {
                     <th>Name</th>
                     <th>Amount</th>
                     <th>Date</th>
+                    <th>Status</th>
                     <th></th>
                 </thead>
                 <tbody id="expenses-body">
@@ -151,10 +170,11 @@ async function renderBudgetById(budgetId=state.budgetId) {
                         `<tr id="expense-row-${i}">
                             <td id="expense-name-${i}">${expense.name}</td>
                             <td id="expense-amount-${i}">\$${expense.amount / 100}</td>
-                            <td id="expense-date-${i}">${expense.date.toDate().toDateString()}
+                            <td id="expense-date-${i}">${expense.date.toDate().toDateString()}</td>
+                            <td id="expense-status-${i}" class="expense-status">${expenseStatusMap[expense.status] || expense.status}</td>
                             <td id="expense-buttons-${i}">
-                                <button id="delete-expense-${i}" class="delete-expense">Delete</button>
-                                <button id="edit-expense-${i}" class="edit-expense">Edit</button>
+                                <button id="delete-expense-${i}" class="delete-expense table-button">Delete</button>
+                                <button id="edit-expense-${i}" class="edit-expense table-button">Edit</button>
                             </td>
                         </tr>`).reduce(liReducer, "") || `<tr id="no-expenses"><td colspan=4>No Expenses Found for Date Range</td></tr>`}
                         
@@ -168,6 +188,14 @@ async function renderBudgetById(budgetId=state.budgetId) {
                     </td>
                     <td id="expenses-date-cell">
                         <input type="date" id="new-expense-date">
+                    </td>
+                    <td id="expenses-status-cell">
+                        ${Object.keys(expenseStatusMap).map((status) => {
+                            return `
+                                <input type="radio" id="new-${status.toLowerCase()}-radio" name="new-expense-status" value="${status}" checked>
+                                <label for="new-${status.toLowerCase()}-radio">${expenseStatusMap[status]}</label>
+                            `
+                        }).reduce(liReducer)}
                     </td>
                     <td id="expenses-submit-cell">
                         <button id="submit-new-expense">Submit</button>
@@ -196,8 +224,8 @@ async function renderBudgetById(budgetId=state.budgetId) {
     currentWeekExpenses.forEach((expense, i) => {
         document.getElementById(`delete-expense-${i}`).addEventListener("click", () => {
             document.getElementById(`expense-buttons-${i}`).innerHTML = `
-                <button id="submit-expense-delete-${i}">Submit Delete</button>
-                <button id="cancel-expense-delete-${i}">Cancel</button>
+                <button id="submit-expense-delete-${i}" class="submit-delete table-button">Submit Delete</button>
+                <button id="cancel-expense-delete-${i}" class="cancel-delete table-button">Cancel</button>
             `
             document.getElementById(`submit-expense-delete-${i}`).addEventListener("click", () => {
                 const updatedExpenses = state.budgetData.expenses.filter((e, i) => i != expense.id);
@@ -226,9 +254,17 @@ async function renderBudgetById(budgetId=state.budgetId) {
             <td id="expense-edit-date-cell-${i}">
                 <input type="date" value="${expense.date.toDate().toISOString().split('T')[0]}" id="edit-expense-date-${i}">
             </td>
+            <td id="expense-edit-status-cell-${i}">
+                ${Object.keys(expenseStatusMap).map((status) => {
+                    return `
+                        <input type="radio" id="edit-${status.toLowerCase()}-radio-${i}" name="edit-expense-status-${i}" value="${status}" checked>
+                        <label for="new-${status.toLowerCase()}-radio">${expenseStatusMap[status]}</label>
+                    `
+                }).reduce(liReducer)}
+            </td>
             <td id="expenses-submit-cell">
-                <button id="submit-expense-edit-${i}">Submit</button>
-                <button id="cancel-expense-edit-${i}">Cancel</button>
+                <button id="submit-expense-edit-${i}" class="submit-edit table-button">Submit</button>
+                <button id="cancel-expense-edit-${i}" class="cancel-edit table-button">Cancel</button>
             </td>
             `
             document.getElementById(`submit-expense-edit-${i}`).addEventListener("click", () => {
@@ -240,6 +276,7 @@ async function renderBudgetById(budgetId=state.budgetId) {
                     date: expenseDate,
                     name: document.getElementById(`edit-expense-name-${i}`).value,
                     amount: Math.floor(new Number(document.getElementById(`edit-expense-amount-${i}`).value) * 100),
+                    status: Array.from(document.getElementsByName(`edit-expense-status-${i}`)).find((radio) => radio.checked).value,
                 }
 
                 const budgetReference = doc(db, "budgets", state.budgetId);

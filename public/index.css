@@ -81,7 +81,6 @@ button#login {
 #expenses-table {
     display: block;
     min-width: 1vw;
-    height: 50%;
     overflow-y: scroll;
 }
 
@@ -114,12 +113,13 @@ button#login {
 #sign-out-container {
     display: flex;
     justify-content: left;
-    margin-top: 20vh;
+    margin-top: 5%;
 }
 
 button {
     cursor: pointer;
     
+    background-color: var(--font-color);
     color: var(--bg-color);
     
     font-size: 4vw;
@@ -178,4 +178,13 @@ button.submit-edit {
 
 button.cancel-edit {
     background-color: var(--red-color);
+}
+
+#new-budget-input {
+    display: flex;
+    flex-direction: column;
+}
+
+#create-new-budget {
+    background-color: var(--green-color);
 }

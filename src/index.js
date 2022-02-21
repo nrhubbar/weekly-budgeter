@@ -13,7 +13,7 @@ const firebaseConfig = {
     appId: "1:199823933355:web:6bfb59099ce48e5c5b9cee"
 };
 
-const expenseStatusMap = {
+const EXPENSES_STATUS_MAP = {
     "PAID": "Paid",
     "PLANNED": "Planned",
 };
@@ -64,6 +64,7 @@ const initializeState = () => {
         ...state,
         weekStart: weekStart,
         weekEnd: weekEnd,
+        weekModifier: 0,
     };
 }
 
@@ -120,6 +121,21 @@ const submitNewExpense = async () => {
     renderBudgetById(state.budgetId);
 };
 
+const getBudgetTableBody = (expenses) => {
+    return `${expenses.sort((a, b) => a.date - b.date).map((expense, i) => 
+        `<tr id="expense-row-${i}">
+            <td id="expense-name-${i}">${sanitizeStringForHTML(expense.name)}</td>
+            <td id="expense-amount-${i}">\$${expense.amount / 100}</td>
+            <td id="expense-date-${i}">${expense.date.toDate().toDateString()}</td>
+            <td id="expense-status-${i}" class="expense-status">${EXPENSES_STATUS_MAP[expense.status] || expense.status}</td>
+            <td id="expense-buttons-${i}">
+                <button id="delete-expense-${i}" class="delete-expense table-button">Delete</button>
+                <button id="edit-expense-${i}" class="edit-expense table-button">Edit</button>
+            </td>
+        </tr>`).reduce(liReducer, "") || `<tr id="no-expenses"><td colspan=4>No Expenses Found for Date Range</td></tr>`}
+    `;
+}
+
 async function renderBudgetById(budgetId=state.budgetId) {
     const budgetDocument = await getDoc(doc(db, "budgets", budgetId));
 
@@ -132,6 +148,12 @@ async function renderBudgetById(budgetId=state.budgetId) {
         budgetId: budgetDocument.id,
         budgetData: budgetDocument.data(),
     };
+
+    let currentWeekStart = new Date(state.weekStart.getFullYear(), state.weekStart.getMonth(), state.weekStart.getDate());
+    const weekStart = new Date(currentWeekStart.setDate(currentWeekStart.getDate() + (7 * state.weekModifier)));
+    
+    let beginningSunday = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate());
+    const weekEnd = new Date(beginningSunday.setDate(beginningSunday.getDate() + 7));
     
     const currentWeekExpenses = budgetDocument.data().expenses.map((expense, i) => { 
             return {
@@ -140,7 +162,7 @@ async function renderBudgetById(budgetId=state.budgetId) {
             };
         }).filter((expense) => {
             const expenseDate = expense.date.toDate();
-            const inRange = expenseDate >= state.weekStart && expenseDate < state.weekEnd
+            const inRange = expenseDate >= weekStart && expenseDate < weekEnd
             
             return inRange;
     });
@@ -169,8 +191,11 @@ async function renderBudgetById(budgetId=state.budgetId) {
         </div>
 
         <div id="expenses-container">
+            <div id="expenses-navigation-container">
+                <button id="previous-week"> Previous Week </button>
+                <button id="next-week"> Next Week </button>
+            </div>
             <table id="expenses-table">
-
                 <thead id="expenses-header">
                     <th>Name</th>
                     <th>Amount</th>
@@ -179,18 +204,7 @@ async function renderBudgetById(budgetId=state.budgetId) {
                     <th></th>
                 </thead>
                 <tbody id="expenses-body">
-                    ${currentWeekExpenses.map((expense, i) => 
-                        `<tr id="expense-row-${i}">
-                            <td id="expense-name-${i}">${sanitizeStringForHTML(expense.name)}</td>
-                            <td id="expense-amount-${i}">\$${expense.amount / 100}</td>
-                            <td id="expense-date-${i}">${expense.date.toDate().toDateString()}</td>
-                            <td id="expense-status-${i}" class="expense-status">${expenseStatusMap[expense.status] || expense.status}</td>
-                            <td id="expense-buttons-${i}">
-                                <button id="delete-expense-${i}" class="delete-expense table-button">Delete</button>
-                                <button id="edit-expense-${i}" class="edit-expense table-button">Edit</button>
-                            </td>
-                        </tr>`).reduce(liReducer, "") || `<tr id="no-expenses"><td colspan=4>No Expenses Found for Date Range</td></tr>`}
-                        
+                        ${getBudgetTableBody(currentWeekExpenses)}                
                 </tbody>
                 <tfoot id="expenses-footer">
                     <td id="expenses-name-cell">
@@ -203,10 +217,10 @@ async function renderBudgetById(budgetId=state.budgetId) {
                         <input type="date" id="new-expense-date">
                     </td>
                     <td id="expenses-status-cell">
-                        ${Object.keys(expenseStatusMap).map((status) => {
+                        ${Object.keys(EXPENSES_STATUS_MAP).map((status) => {
                             return `
                                 <input type="radio" id="new-${status.toLowerCase()}-radio" name="new-expense-status" value="${status}" checked>
-                                <label for="new-${status.toLowerCase()}-radio">${expenseStatusMap[status]}</label>
+                                <label for="new-${status.toLowerCase()}-radio">${EXPENSES_STATUS_MAP[status]}</label>
                             `
                         }).reduce(liReducer)}
                     </td>
@@ -233,6 +247,24 @@ async function renderBudgetById(budgetId=state.budgetId) {
     document.getElementById("manage-budget-access").addEventListener("click", renderBudgetAccessManager);
     document.getElementById("sign-out").addEventListener("click", signOut);
     document.getElementById("submit-new-expense").addEventListener("click", submitNewExpense);
+
+    document.getElementById("previous-week").addEventListener("click", () => {
+        state = {
+            ...state,
+            weekModifier: state.weekModifier - 1,
+        };
+        
+        renderBudgetById(state.budgetId);
+    });
+
+    document.getElementById("next-week").addEventListener("click", () => {
+        state = {
+            ...state,
+            weekModifier: state.weekModifier + 1,
+        };
+        
+        renderBudgetById(state.budgetId);
+    });
 
     currentWeekExpenses.forEach((expense, i) => {
         document.getElementById(`delete-expense-${i}`).addEventListener("click", () => {
@@ -268,10 +300,10 @@ async function renderBudgetById(budgetId=state.budgetId) {
                 <input type="date" value="${expense.date.toDate().toISOString().split('T')[0]}" id="edit-expense-date-${i}">
             </td>
             <td id="expense-edit-status-cell-${i}">
-                ${Object.keys(expenseStatusMap).map((status) => {
+                ${Object.keys(EXPENSES_STATUS_MAP).map((status) => {
                     return `
                         <input type="radio" id="edit-${status.toLowerCase()}-radio-${i}" name="edit-expense-status-${i}" value="${status}" checked>
-                        <label for="new-${status.toLowerCase()}-radio">${expenseStatusMap[status]}</label>
+                        <label for="new-${status.toLowerCase()}-radio">${EXPENSES_STATUS_MAP[status]}</label>
                     `
                 }).reduce(liReducer)}
             </td>
@@ -356,6 +388,7 @@ async function renderAllBudgets() {
                 ...state,
                 budgetId: budget.id,
                 budgetData: budget.data(),
+                weekModifier: 0,
             };
             renderBudgetById(budget.id);
         });

@@ -73,9 +73,13 @@ button#login {
 }
 
 #expenses-container {
-    display: flex;
     justify-content: center;
     overflow-x: scroll;
+}
+
+#expenses-navigation-container {
+    display: flex;
+    justify-content: space-between;
 }
 
 #expenses-table {

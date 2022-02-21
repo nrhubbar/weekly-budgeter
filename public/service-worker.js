@@ -3,8 +3,8 @@
  * This code is copied from: https://github.com/iamshaunjp/pwa-tutorial/blob/lesson-29/public/sw.js
  */
 
-const staticCacheName = 'site-static-v1';
-const dynamicCacheName = 'site-dynamic-v1';
+const staticCacheName = 'site-static-v2';
+const dynamicCacheName = 'site-dynamic-v2';
 const assets = [
   '/',
   '/index.html',

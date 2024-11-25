@@ -139,7 +139,7 @@ const getBudgetTableBody = (expenses) => {
 // @stateless
 // @noUi
 function getCurrentWeekExpenses(expenses, weekStartAndEnd) {
-    expenses.map((expense, i) => { 
+    return expenses.map((expense, i) => { 
         return {
             ...expense,
             id: i,

@@ -142,6 +142,11 @@ button#sign-out {
     background-color: var(--red-color);
 }
 
+#navigate-buttons {
+    display: flex;
+    justify-content: space-between;
+}
+
 #navigate-buttons > button {
     background-color: var(--font-color);
 }

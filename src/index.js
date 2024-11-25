@@ -269,7 +269,7 @@ async function renderBudgetById(budgetId=state.budgetId) {
         <div id="navigate-buttons">
             <button id="see-all-budgets">See All Budgets</button>
             <button id="manage-budget-access">Manage Budget Access</button>
-            <button id="carry-balance">Carry Balance from Previous Week</button>
+            <button id="carry-balance">Carry Balance</button>
         </div>
 
         <div id="sign-out-container">

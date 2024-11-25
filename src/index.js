@@ -55,7 +55,7 @@ const signOut = () => {
 const initializeState = () => {
     let now = new Date();
     let today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const weekStart = new Date(today.setDate(today.getDate()-today.getDay()));
+    const weekStart = new Date(today.setDate(today.getDate()-today.getDay())); // Today's Date - Day of Week == Sunday (always)
     
     let lastSunday = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate());
     const weekEnd = new Date(lastSunday.setDate(lastSunday.getDate() + 7));
@@ -136,6 +136,58 @@ const getBudgetTableBody = (expenses) => {
     `;
 }
 
+// @stateless
+// @noUi
+function getCurrentWeekExpenses(expenses, weekStartAndEnd) {
+    expenses.map((expense, i) => { 
+        return {
+            ...expense,
+            id: i,
+        };
+        }).filter((expense) => {
+            const expenseDate = expense.date.toDate();
+            const inRange = expenseDate >= weekStartAndEnd.weekStart && expenseDate < weekStartAndEnd.weekEnd
+            
+            return inRange;
+    });
+}
+
+// @stateless
+// @noUi
+function getWeekStartAndEndDates(weekStart, weekModifier) {
+
+    let currentWeekStart = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate());
+    const weekStartWithOffset = new Date(currentWeekStart.setDate(currentWeekStart.getDate() + (7 * weekModifier)));
+    
+    let beginningSunday = new Date(weekStartWithOffset.getFullYear(), weekStartWithOffset.getMonth(), weekStartWithOffset.getDate());
+    const weekEnd = new Date(beginningSunday.setDate(beginningSunday.getDate() + 7));
+
+
+    return {
+        weekStart: weekStartWithOffset,
+        weekEnd: weekEnd,
+    };
+}
+
+// @stateless
+// @noUi
+function calculateBalances(weekExpenses, weeklyLimit) {
+    const paidSum = weekExpenses.filter((expense) => expense.status == "PAID")
+        .map((expense) => expense.amount)
+        .reduce((a, b) => a + b, 0);
+    const plannedSum = weekExpenses.map((expense) => expense.amount)
+        .reduce((a, b) => a + b, 0);
+    const remainingBudget = (weeklyLimit - paidSum);
+    const plannedRemaining = (weeklyLimit - plannedSum);
+
+    return {
+        paidSum: paidSum,
+        plannedSum: plannedSum,
+        remainingBudget: remainingBudget,
+        plannedRemaining: plannedRemaining,
+    };
+}
+
 async function renderBudgetById(budgetId=state.budgetId) {
     const budgetDocument = await getDoc(doc(db, "budgets", budgetId));
 
@@ -149,31 +201,14 @@ async function renderBudgetById(budgetId=state.budgetId) {
         budgetData: budgetDocument.data(),
     };
 
-    let currentWeekStart = new Date(state.weekStart.getFullYear(), state.weekStart.getMonth(), state.weekStart.getDate());
-    const weekStart = new Date(currentWeekStart.setDate(currentWeekStart.getDate() + (7 * state.weekModifier)));
-    
-    let beginningSunday = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate());
-    const weekEnd = new Date(beginningSunday.setDate(beginningSunday.getDate() + 7));
-    
-    const currentWeekExpenses = budgetDocument.data().expenses.map((expense, i) => { 
-            return {
-                ...expense,
-                id: i,
-            };
-        }).filter((expense) => {
-            const expenseDate = expense.date.toDate();
-            const inRange = expenseDate >= weekStart && expenseDate < weekEnd
-            
-            return inRange;
-    });
+    const weekStartAndEnd = getWeekStartAndEndDates(state.weekStart, state.weekModifier);
+    const currentWeekExpenses = getCurrentWeekExpenses(budgetDocument.data().expenses, weekStartAndEnd);
+    const balances = calculateBalances(currentWeekExpenses, budgetDocument.data().limit);
 
-    const paidSum = currentWeekExpenses.filter((expense) => expense.status == "PAID")
-        .map((expense) => expense.amount)
-        .reduce((a, b) => a + b, 0);
-    const plannedSum = currentWeekExpenses.map((expense) => expense.amount)
-        .reduce((a, b) => a + b, 0);
-    const remainingBudget = (budgetDocument.data().limit - paidSum) / 100;
-    const plannedRemaining = (budgetDocument.data().limit - plannedSum) / 100;
+    const paidSum = balances.paidSum;
+    const plannedSum = balances.plannedSum;
+    const remainingBudget = balances.remainingBudget;
+    const plannedRemaining = balances.plannedRemaining;
 
     const budgetView = `
         <div id="header">
@@ -181,12 +216,12 @@ async function renderBudgetById(budgetId=state.budgetId) {
         </div>
 
         <div id="remaining-budget-container">
-            <h2 id="remaining-budget" class="${remainingBudget >= 0 ? "under-budget" : "over-budget"}">\$${remainingBudget}</h2>
+            <h2 id="remaining-budget" class="${remainingBudget >= 0 ? "under-budget" : "over-budget"}">\$${remainingBudget / 100}</h2>
         </div>
 
         <div id="budget-sums-container">
             <p id="paid-sum"> Paid Sum: \$${paidSum / 100}</p>
-            <p id="planned-remaining" class="${plannedRemaining >= 0 ? "under-budget" : "over-budget"}">Planned Remaining: \$${plannedRemaining}</p>
+            <p id="planned-remaining" class="${plannedRemaining >= 0 ? "under-budget" : "over-budget"}">Planned Remaining: \$${plannedRemaining / 100}</p>
             <p id="planned-sum"> Planned Sum: \$${plannedSum / 100} </p>
         </div>
 
@@ -234,6 +269,7 @@ async function renderBudgetById(budgetId=state.budgetId) {
         <div id="navigate-buttons">
             <button id="see-all-budgets">See All Budgets</button>
             <button id="manage-budget-access">Manage Budget Access</button>
+            <button id="carry-balance">Carry Balance from Previous Week</button>
         </div>
 
         <div id="sign-out-container">
@@ -247,6 +283,33 @@ async function renderBudgetById(budgetId=state.budgetId) {
     document.getElementById("manage-budget-access").addEventListener("click", renderBudgetAccessManager);
     document.getElementById("sign-out").addEventListener("click", signOut);
     document.getElementById("submit-new-expense").addEventListener("click", submitNewExpense);
+    document.getElementById("carry-balance").addEventListener("click", () => {
+        // Step 1: Calculate Remaining Balance from Previous Week
+        const lastWeekStartAndEnd = getWeekStartAndEndDates(state.weekStart, state.weekModifier - 1);
+        const currentWeekExpenses = getCurrentWeekExpenses(budgetDocument.data().expenses, lastWeekStartAndEnd);
+        const balances = calculateBalances(currentWeekExpenses, budgetDocument.data().limit);
+        const lastWeeksBalance = balances.remainingBudget;
+
+        // Step 2: Add it as Expense to Current Week
+        const expense = {
+            date: weekStartAndEnd.weekStart, // Sunday of current week
+            name: "Last Week's Balance",
+            amount: lastWeeksBalance,
+            status: "PAID",
+        };
+    
+        const budgetReference = doc(db, "budgets", state.budgetId);
+        setDoc(budgetReference, {
+            ...state.budgetData,
+            expenses: [
+                ...state.budgetData.expenses,
+                expense,
+            ]
+        });
+        // Step 3: Refresh
+        renderBudgetById(state.budgetId);
+
+    });
 
     document.getElementById("previous-week").addEventListener("click", () => {
         state = {
@@ -357,7 +420,7 @@ async function renderAllBudgets() {
                     .map((budgetData) => {
                         return `
                             <li class="budget-list-item">
-                                Name: ${sanitizeStringForHTML(budgetData.name)} Limit: \$${budgetData.limit}
+                                Name: ${sanitizeStringForHTML(budgetData.name)} Limit: \$${budgetData.limit / 100}
                                 <button id="view-budget-${budgetData.id}" class="view-budget">View</button>
                                 <button id="mark-favorite-${budgetData.id}" class="mark-favorite">Mark Favorite</button>
                             </li>

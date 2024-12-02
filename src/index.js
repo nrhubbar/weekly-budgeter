@@ -288,13 +288,14 @@ async function renderBudgetById(budgetId=state.budgetId) {
         const lastWeekStartAndEnd = getWeekStartAndEndDates(state.weekStart, state.weekModifier - 1);
         const currentWeekExpenses = getCurrentWeekExpenses(budgetDocument.data().expenses, lastWeekStartAndEnd);
         const balances = calculateBalances(currentWeekExpenses, budgetDocument.data().limit);
-        const lastWeeksBalance = balances.remainingBudget;
+        // Step 1.1: Use the negation to carry over. (If we go over budget on week 1, that should count as an expense in week 2) 
+        const lastWeeksBalanceToCarry = -balances.remainingBudget;
 
         // Step 2: Add it as Expense to Current Week
         const expense = {
             date: weekStartAndEnd.weekStart, // Sunday of current week
             name: "Last Week's Balance",
-            amount: lastWeeksBalance,
+            amount: lastWeeksBalanceToCarry,
             status: "PAID",
         };
     

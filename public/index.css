@@ -1,58 +1,250 @@
+/* ==========================================================================
+   CSS Variables & Theme System
+   ========================================================================== */
+
 :root {
-    --bg-color: hsl(206, 14%, 90%);
-    --font-color: hsl(208, 67%, 50%);
-    --green-color: hsl(148 , 55% , 37%);
-    --red-color: hsl(358, 55% , 37%);
+    /* Desert landscape color palette - WCAG AA compliant (default theme) */
+    /* All color combinations meet WCAG 2.1 Level AA standards:
+     * - Normal text: 4.5:1 contrast ratio minimum
+     * - Large text: 3:1 contrast ratio minimum
+     * All colors defined in HSL format
+     */
+    --bg-color: hsl(40, 100%, 94%);
+    --font-color: hsl(15, 40%, 12%);
+    --green-color: hsl(35, 65%, 52%);
+    --red-color: hsl(5, 70%, 50%);
+    --bg-light: hsl(40, 100%, 97%);
+    --bg-dark: hsl(35, 60%, 90%);
+    --accent: hsl(30, 45%, 55%);
+    --text-muted: hsl(20, 30%, 25%);
+    --button-text-on-amber: hsl(15, 40%, 12%);
+    --button-text-on-red: hsl(0, 0%, 100%);
+    
+    /* Spacing scale */
+    --spacing-xs: 0.5rem;
+    --spacing-sm: 1rem;
+    --spacing-md: 1.5rem;
+    --spacing-lg: 2rem;
+    --spacing-xl: 3rem;
+    
+    /* Layout */
+    --container-max-width: 100%;
+    --container-padding: 1rem;
+    
+    /* Typography scale */
+    --font-size-xs: clamp(0.65rem, 2vw, 0.75rem);
+    --font-size-sm: clamp(0.75rem, 2.5vw, 0.875rem);
+    --font-size-base: clamp(0.875rem, 3vw, 1rem);
+    --font-size-md: clamp(1rem, 3vw, 1.125rem);
+    --font-size-lg: clamp(1.125rem, 4vw, 1.5rem);
+    --font-size-xl: clamp(1.25rem, 5vw, 1.75rem);
+    --font-size-2xl: clamp(2rem, 8vw, 4rem);
+    --font-size-3xl: clamp(2rem, 10vw, 4rem);
+    
+    /* Shadows */
+    --shadow-sm: 0 2px 4px hsla(15, 40%, 12%, 0.1);
+    --shadow-md: 0 4px 8px hsla(15, 40%, 12%, 0.15);
+    --shadow-focus: 0 0 0 2px hsla(15, 40%, 12%, 0.1);
+    
+    /* Border radius */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-full: 50%;
+    
+    /* Transitions */
+    --transition-fast: 0.1s;
+    --transition-base: 0.2s;
+}
+
+/* Verdant green theme */
+:root[data-theme="verdant"] {
+    --bg-color: hsl(120, 25%, 95%);
+    --font-color: hsl(140, 50%, 15%);
+    --green-color: hsl(120, 45%, 45%);
+    --red-color: hsl(25, 75%, 50%);
+    --bg-light: hsl(120, 30%, 97%);
+    --bg-dark: hsl(120, 20%, 90%);
+    --accent: hsl(100, 40%, 50%);
+    --text-muted: hsl(140, 30%, 35%);
+    --button-text-on-amber: hsl(140, 50%, 15%);
+    --button-text-on-red: hsl(0, 0%, 100%);
+}
+
+/* ==========================================================================
+   Base Styles
+   ========================================================================== */
+
+* {
+    box-sizing: border-box;
 }
 
 body {
     font-family: 'Montserrat', sans-serif;
     font-weight: 300;
-    line-height: 1.2;
+    line-height: 1.5;
     background-color: var(--bg-color);
     color: var(--font-color);
+    margin: 0;
+    padding: var(--container-padding);
+    font-size: 16px;
 }
+
+#app {
+    max-width: var(--container-max-width);
+    margin: 0 auto;
+    position: relative;
+}
+
+/* ==========================================================================
+   Typography
+   ========================================================================== */
 
 #title {
     display: flex;
     font-weight: 150;
-    font-size: 7.5vh;
-    line-height: 0.75;
+    font-size: var(--font-size-2xl);
+    line-height: 1.2;
     justify-content: center;
+    text-align: center;
+    margin: var(--spacing-md) 0;
+}
+
+#budget-name {
+    text-align: center;
+    font-weight: 200;
+    font-size: var(--font-size-xl);
+    margin: var(--spacing-sm) 0;
+}
+
+/* ==========================================================================
+   Theme Toggle
+   ========================================================================== */
+
+#theme-toggle-container {
+    position: absolute;
+    top: var(--spacing-md);
+    left: var(--spacing-md);
+    z-index: 1000;
+}
+
+.theme-toggle-button {
+    background-color: var(--bg-light);
+    border: 2px solid var(--accent);
+    border-radius: var(--radius-full);
+    width: 44px;
+    height: 44px;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all var(--transition-base);
+    box-shadow: var(--shadow-sm);
+}
+
+.theme-toggle-button:hover {
+    background-color: var(--bg-dark);
+    transform: scale(1.1);
+}
+
+.theme-toggle-button:active {
+    transform: scale(0.95);
+}
+
+/* ==========================================================================
+   Layout Components
+   ========================================================================== */
+
+#header {
+    margin-bottom: var(--spacing-lg);
+}
+
+/* Centered container */
+#login-container,
+#loading-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 #login-container {
-    display: flex;
     flex-direction: row;
-    justify-content: center;
+    min-height: 50vh;
+    padding: var(--spacing-lg);
 }
 
-button#login {
-    order: 1;
-    flex-grow: 2;
-    margin: 15%;
-    border-radius: 6px;
-
-    font-weight: 150;
-    font-size: 3vh;
-    line-height: 1.333;
-    border: none;
-
-    background-color: var(--green-color);
-    color: var(--bg-color);
-
-    cursor: pointer;
+#loading-container {
+    min-height: 50vh;
+    font-size: var(--font-size-lg);
 }
+
+/* Flex containers */
+#budget-sums-container,
+#expenses-navigation-container,
+#navigate-buttons {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+#budget-sums-container {
+    flex-direction: column;
+    margin: var(--spacing-md) 0;
+    padding: var(--spacing-sm);
+}
+
+#budget-sums-container > p {
+    text-align: center;
+    font-size: var(--font-size-md);
+    margin: 0;
+    padding: var(--spacing-xs);
+}
+
+#expenses-navigation-container {
+    justify-content: space-between;
+    margin-bottom: var(--spacing-md);
+}
+
+#expenses-navigation-container > button {
+    flex: 1;
+    min-width: 0;
+}
+
+#navigate-buttons {
+    flex-direction: column;
+    margin: var(--spacing-lg) 0;
+    padding: 0 var(--spacing-sm);
+}
+
+#navigate-buttons > button {
+    width: 100%;
+    background-color: var(--font-color);
+}
+
+#sign-out-container {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: var(--spacing-xl);
+    padding: var(--spacing-md);
+}
+
+/* ==========================================================================
+   Budget Display
+   ========================================================================== */
 
 #remaining-budget-container {
     display: flex;
     justify-content: center;
+    margin: var(--spacing-lg) 0;
+    padding: var(--spacing-md);
 }
 
 #remaining-budget {
     font-weight: 200;
-    font-size: 6vh;
+    font-size: var(--font-size-3xl);
     line-height: 1;
+    text-align: center;
 }
 
 .under-budget {
@@ -63,96 +255,306 @@ button#login {
     color: var(--red-color);
 }
 
-#budget-sums-container {
-    display: flex;
-    flex-direction: row;
-}
-
-#budget-sums-container > p {
-    flex: auto;
-}
+/* ==========================================================================
+   Expenses - Card View
+   ========================================================================== */
 
 #expenses-container {
-    justify-content: center;
-    overflow-x: scroll;
+    margin: var(--spacing-lg) 0;
+    width: 100%;
 }
 
-#expenses-navigation-container {
+#expenses-list {
+    display: grid;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.expense-card {
+    background: var(--bg-light);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--transition-base), box-shadow var(--transition-base), background-color var(--transition-base);
 }
 
-#expenses-table {
-    display: block;
-    min-width: 1vw;
-    overflow-y: scroll;
+.expense-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    background: var(--bg-dark);
 }
 
-#expenses-header {
-    position: sticky;
-    top: 0;
-    background: var(--bg-color);
+.expense-card.edit-mode {
+    border: 2px solid var(--accent);
 }
 
-#expenses-footer {
-    position: sticky;
-    bottom: 0;
-    background: var(--bg-color);
+.expense-card.delete-mode {
+    border: 2px solid var(--red-color);
 }
 
-#expenses-body {
-    white-space: nowrap;
+.expense-card-content {
+    display: grid;
+    gap: var(--spacing-xs);
+}
+
+.expense-name {
+    font-weight: 500;
+    font-size: var(--font-size-md);
+    color: var(--font-color);
+}
+
+.expense-amount {
+    font-size: var(--font-size-lg);
+    font-weight: 400;
+    color: var(--font-color);
+}
+
+.expense-date {
+    font-size: var(--font-size-base);
+    color: var(--text-muted);
 }
 
 .expense-status {
-    display: flex;
-    justify-content: center;
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: var(--font-size-sm);
+    font-weight: 400;
+    width: fit-content;
+    background-color: var(--accent);
+    color: var(--font-color);
 }
 
-#loading-container {
-    display: flex;
-    justify-content: center;
+.expense-card-content .expense-status {
+    margin-top: var(--spacing-xs);
 }
 
-#sign-out-container {
+.expense-card-actions {
     display: flex;
-    justify-content: left;
-    margin-top: 5%;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-xs);
 }
+
+.expense-card-actions button {
+    flex: 1;
+    min-width: 0;
+}
+
+.new-expense-card {
+    background: var(--bg-light);
+    border: 2px dashed var(--accent);
+    opacity: 0.8;
+}
+
+.new-expense-card:focus-within {
+    opacity: 1;
+    border-style: solid;
+}
+
+.no-expenses {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--text-muted);
+    font-size: var(--font-size-md);
+}
+
+/* ==========================================================================
+   Expenses - Table View
+   ========================================================================== */
+
+#expenses-table-container {
+    width: 100%;
+    overflow-x: auto;
+    margin-bottom: var(--spacing-lg);
+}
+
+.expenses-table-view {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-light);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.expenses-table-view thead {
+    background-color: var(--font-color);
+    color: var(--bg-color);
+}
+
+.expenses-table-view th {
+    padding: var(--spacing-sm) var(--spacing-md);
+    text-align: left;
+    font-weight: 400;
+    font-size: var(--font-size-base);
+}
+
+.expenses-table-view tbody tr {
+    border-bottom: 1px solid hsla(15, 40%, 12%, 0.1);
+    transition: background-color var(--transition-base);
+}
+
+.expenses-table-view tbody tr:hover {
+    background-color: var(--bg-dark);
+}
+
+.expenses-table-view tbody tr:last-child {
+    border-bottom: none;
+}
+
+.expenses-table-view tbody tr:nth-child(even) {
+    background-color: var(--bg-color);
+}
+
+.expenses-table-view td {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-base);
+    color: var(--font-color);
+}
+
+/* ==========================================================================
+   Form Elements
+   ========================================================================== */
+
+/* Input base styles */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="date"] {
+    width: 100%;
+    padding: var(--spacing-sm);
+    font-size: var(--font-size-base);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-color);
+    color: var(--font-color);
+    box-sizing: border-box;
+    min-height: 44px;
+}
+
+input:focus {
+    outline: none;
+    border-color: var(--font-color);
+    box-shadow: var(--shadow-focus);
+}
+
+.expense-input {
+    font-size: var(--font-size-base);
+}
+
+/* Form containers */
+#new-budget-input,
+#add-email-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+#new-budget-input {
+    margin: var(--spacing-lg) 0;
+}
+
+#new-budget-input label {
+    font-size: var(--font-size-base);
+    margin-bottom: var(--spacing-xs);
+}
+
+#add-email-container {
+    margin: var(--spacing-lg) 0;
+}
+
+#add-email-container label {
+    font-size: var(--font-size-base);
+}
+
+.expense-status-radio {
+    display: flex;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.expense-status-radio label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: var(--font-size-base);
+    cursor: pointer;
+}
+
+.expense-status-radio input[type="radio"] {
+    cursor: pointer;
+    width: auto;
+    min-height: auto;
+}
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
 
 button {
     cursor: pointer;
-    
     background-color: var(--font-color);
     color: var(--bg-color);
-    
-    font-size: 4vw;
+    font-size: var(--font-size-base);
     font-weight: 150;
     line-height: 1.333;
-
     border: none;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    min-height: 44px;
+    transition: opacity var(--transition-base), transform var(--transition-fast);
+}
+
+button:hover {
+    opacity: 0.9;
+}
+
+button:active {
+    opacity: 0.8;
+    transform: scale(0.98);
+}
+
+/* Button variants */
+button#login {
+    flex: 1;
+    max-width: 300px;
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: var(--font-size-lg);
+    background-color: var(--green-color);
+    color: var(--button-text-on-amber);
+}
+
+button#login:hover {
+    opacity: 0.9;
+}
+
+button#login:active {
+    opacity: 0.8;
+}
+
+/* Success/positive buttons */
+button[class*="submit-edit"],
+button#submit-new-expense,
+button#create-new-budget {
+    background-color: var(--green-color);
+    color: var(--button-text-on-amber);
+}
+
+/* Error/delete buttons */
+button[class*="submit-delete"],
+button.delete-expense,
+button#sign-out {
+    background-color: var(--red-color);
+    color: var(--button-text-on-red);
 }
 
 button#sign-out {
-    width: 20%;
-    
-    font-size: 3.5vw;    
-
-    background-color: var(--red-color);
-}
-
-#navigate-buttons {
-    display: flex;
-    justify-content: space-between;
-}
-
-#navigate-buttons > button {
-    background-color: var(--font-color);
-}
-
-.table-button {
-    font-size: 3vw;
+    width: auto;
+    min-width: 120px;
+    font-size: var(--font-size-base);
 }
 
 button.edit-expense {
@@ -161,39 +563,259 @@ button.edit-expense {
 
 button.delete-expense {
     background-color: var(--red-color);
-}
-
-#expenses-status-cell {
-    display: flex;
-}
-
-button#submit-new-expense {
-    width: 100%;
-
-    background-color: var(--green-color);
+    color: var(--button-text-on-red);
 }
 
 button.submit-delete {
     background-color: var(--red-color);
+    color: var(--button-text-on-red);
 }
 
 button.cancel-delete {
     background-color: var(--font-color);
+    color: var(--bg-color);
 }
 
 button.submit-edit {
     background-color: var(--green-color);
+    color: var(--button-text-on-amber);
 }
 
 button.cancel-edit {
     background-color: var(--red-color);
+    color: var(--button-text-on-red);
 }
 
-#new-budget-input {
-    display: flex;
-    flex-direction: column;
+button#submit-new-expense {
+    width: 100%;
+    min-width: 0;
+    padding: var(--spacing-xs) var(--spacing-xs);
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.toggle-view-button {
+    flex: 0 0 auto;
+    min-width: 120px;
+    font-size: var(--font-size-sm);
 }
 
 #create-new-budget {
-    background-color: var(--green-color);
+    width: 100%;
+    margin-top: var(--spacing-md);
+}
+
+/* ==========================================================================
+   Budget List
+   ========================================================================== */
+
+#all-budgets-conatiner ul {
+    list-style: none;
+    padding: 0;
+    margin: var(--spacing-lg) 0;
+}
+
+.budget-list-item {
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+    background-color: var(--bg-light);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.budget-list-item.favorite-budget {
+    border: 2px solid var(--accent);
+    background-color: var(--bg-dark);
+}
+
+.budget-list-item button {
+    margin-top: var(--spacing-xs);
+}
+
+.view-budget,
+.mark-favorite {
+    width: 100%;
+}
+
+/* ==========================================================================
+   Budget Access Manager
+   ========================================================================== */
+
+#budget-access-manager-container {
+    margin: var(--spacing-lg) 0;
+    padding: var(--spacing-md);
+}
+
+#budget-access-manager-container h2 {
+    font-size: var(--font-size-xl);
+    margin-bottom: var(--spacing-md);
+}
+
+#budget-access-manager-container ul {
+    list-style: none;
+    padding: 0;
+    margin: var(--spacing-md) 0;
+}
+
+#budget-access-manager-container li {
+    padding: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.remove-email {
+    width: 100%;
+    max-width: 200px;
+}
+
+#submit-email {
+    width: 100%;
+    max-width: 200px;
+}
+
+#done-budget-access-manager {
+    width: 100%;
+    margin-top: var(--spacing-md);
+}
+
+/* ==========================================================================
+   New Account Container
+   ========================================================================== */
+
+#new-account-container {
+    margin: var(--spacing-lg) 0;
+    padding: var(--spacing-md);
+}
+
+#new-account-container h2 {
+    font-size: var(--font-size-xl);
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+#submit-new-budget {
+    margin-top: var(--spacing-lg);
+}
+
+/* ==========================================================================
+   Responsive Design - Tablet (768px+)
+   ========================================================================== */
+
+@media (min-width: 768px) {
+    :root {
+        --container-max-width: 90%;
+        --container-padding: 2rem;
+    }
+    
+    #budget-sums-container {
+        flex-direction: row;
+        justify-content: space-around;
+    }
+    
+    #budget-sums-container > p {
+        flex: 1;
+    }
+    
+    #navigate-buttons {
+        flex-direction: row;
+        justify-content: space-between;
+    }
+    
+    #navigate-buttons > button {
+        flex: 1;
+        max-width: 300px;
+    }
+    
+    .budget-list-item {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .view-budget,
+    .mark-favorite {
+        width: auto;
+        min-width: 120px;
+        margin-left: var(--spacing-sm);
+    }
+    
+    #budget-access-manager-container li {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .remove-email {
+        margin-left: var(--spacing-sm);
+    }
+    
+    #add-email-container {
+        flex-direction: row;
+        align-items: flex-end;
+    }
+    
+    #add-email-container input[type="email"] {
+        flex: 1;
+        margin-right: var(--spacing-sm);
+    }
+    
+    #expenses-navigation-container > button {
+        flex: 0 1 auto;
+        min-width: 150px;
+    }
+    
+    #expenses-list {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* ==========================================================================
+   Responsive Design - Desktop (1024px+)
+   ========================================================================== */
+
+@media (min-width: 1024px) {
+    :root {
+        --container-max-width: 1200px;
+        --container-padding: 2rem;
+    }
+    
+    body {
+        font-size: 18px;
+    }
+    
+    button {
+        padding: var(--spacing-sm) var(--spacing-lg);
+    }
+    
+    #sign-out-container {
+        justify-content: flex-start;
+    }
+    
+    button#sign-out {
+        width: auto;
+    }
+    
+    #expenses-list {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* ==========================================================================
+   Responsive Design - Large Desktop (1440px+)
+   ========================================================================== */
+
+@media (min-width: 1440px) {
+    :root {
+        --container-max-width: 1400px;
+    }
+    
+    #expenses-list {
+        grid-template-columns: repeat(4, 1fr);
+    }
 }

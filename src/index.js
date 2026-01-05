@@ -18,6 +18,16 @@ const EXPENSES_STATUS_MAP = {
     "PLANNED": "Planned",
 };
 
+const VIEW_MODE = {
+    CARDS: 'CARDS',
+    TABLE: 'TABLE',
+};
+
+const THEME = {
+    DESERT: 'DESERT',
+    VERDANT: 'VERDANT',
+};
+
 if('serviceWorker' in navigator){
     navigator.serviceWorker.register('/service-worker.js')
         .then(reg => console.log('service worker registered'))
@@ -65,6 +75,7 @@ const initializeState = () => {
         weekStart: weekStart,
         weekEnd: weekEnd,
         weekModifier: 0,
+        viewMode: VIEW_MODE.CARDS,
     };
 }
 
@@ -77,6 +88,52 @@ const sanitizeStringForHTML = (input) => {
 
 const renderView = (html) => {
     document.getElementById("app").innerHTML = html;
+}
+
+const applyTheme = (theme) => {
+    const root = document.documentElement;
+    if (theme === THEME.VERDANT) {
+        root.setAttribute('data-theme', 'verdant');
+    } else {
+        root.setAttribute('data-theme', 'desert');
+    }
+}
+
+const getThemeToggleHTML = () => {
+    const currentTheme = state.theme || THEME.DESERT;
+    return `
+        <div id="theme-toggle-container">
+            <button id="theme-toggle" class="theme-toggle-button" title="Toggle theme">
+                ${currentTheme === THEME.DESERT ? '🌵' : '🌿'}
+            </button>
+        </div>
+    `;
+}
+
+const attachThemeToggleListener = async () => {
+    const toggleButton = document.getElementById("theme-toggle");
+    if (toggleButton) {
+        toggleButton.addEventListener("click", async () => {
+            const newTheme = state.theme === THEME.DESERT ? THEME.VERDANT : THEME.DESERT;
+            state = {
+                ...state,
+                theme: newTheme,
+            };
+            
+            // Save to Firebase
+            if (state.userId) {
+                const userReference = doc(db, "users", state.userId);
+                await setDoc(userReference, {
+                    favoriteBudget: state.favoriteBudgetId,
+                    theme: newTheme,
+                }, { merge: true });
+            }
+            
+            applyTheme(newTheme);
+            // Update toggle icon
+            toggleButton.textContent = newTheme === THEME.DESERT ? '🌵' : '🌿';
+        });
+    }
 };
 
 const renderLoadingPage = () => {
@@ -121,18 +178,51 @@ const submitNewExpense = async () => {
     renderBudgetById(state.budgetId);
 };
 
-const getBudgetTableBody = (expenses) => {
-    return `${expenses.sort((a, b) => a.date - b.date).map((expense, i) => 
-        `<tr id="expense-row-${i}">
-            <td id="expense-name-${i}">${sanitizeStringForHTML(expense.name)}</td>
-            <td id="expense-amount-${i}">\$${expense.amount / 100}</td>
-            <td id="expense-date-${i}">${expense.date.toDate().toDateString()}</td>
-            <td id="expense-status-${i}" class="expense-status">${EXPENSES_STATUS_MAP[expense.status] || expense.status}</td>
-            <td id="expense-buttons-${i}">
-                <button id="delete-expense-${i}" class="delete-expense table-button">Delete</button>
-                <button id="edit-expense-${i}" class="edit-expense table-button">Edit</button>
-            </td>
-        </tr>`).reduce(liReducer, "") || `<tr id="no-expenses"><td colspan=4>No Expenses Found for Date Range</td></tr>`}
+const getExpenseCards = (expenses) => {
+    if (!expenses || expenses.length === 0) {
+        return `<div class="no-expenses">No Expenses Found for Date Range</div>`;
+    }
+    return expenses.sort((a, b) => a.date - b.date).map((expense, i) => 
+        `<div class="expense-card" id="expense-card-${i}">
+            <div class="expense-card-content">
+                <div class="expense-name" id="expense-name-${i}">${sanitizeStringForHTML(expense.name)}</div>
+                <div class="expense-amount" id="expense-amount-${i}">\$${expense.amount / 100}</div>
+                <div class="expense-date" id="expense-date-${i}">${expense.date.toDate().toDateString()}</div>
+                <div class="expense-status" id="expense-status-${i}">${EXPENSES_STATUS_MAP[expense.status] || expense.status}</div>
+            </div>
+            <div class="expense-card-actions" id="expense-buttons-${i}">
+                <button id="edit-expense-${i}" class="edit-expense">Edit</button>
+                <button id="delete-expense-${i}" class="delete-expense">Delete</button>
+            </div>
+        </div>`).reduce(liReducer, "");
+}
+
+const getExpenseTable = (expenses) => {
+    if (!expenses || expenses.length === 0) {
+        return `<div class="no-expenses">No Expenses Found for Date Range</div>`;
+    }
+    const sortedExpenses = expenses.sort((a, b) => a.date - b.date);
+    return `
+        <table class="expenses-table-view">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${sortedExpenses.map((expense) => 
+                    `<tr>
+                        <td>${sanitizeStringForHTML(expense.name)}</td>
+                        <td>\$${expense.amount / 100}</td>
+                        <td>${expense.date.toDate().toDateString()}</td>
+                        <td>${EXPENSES_STATUS_MAP[expense.status] || expense.status}</td>
+                    </tr>`
+                ).reduce(liReducer, "")}
+            </tbody>
+        </table>
     `;
 }
 
@@ -204,6 +294,11 @@ async function renderBudgetById(budgetId=state.budgetId) {
     const weekStartAndEnd = getWeekStartAndEndDates(state.weekStart, state.weekModifier);
     const currentWeekExpenses = getCurrentWeekExpenses(budgetDocument.data().expenses, weekStartAndEnd);
     const balances = calculateBalances(currentWeekExpenses, budgetDocument.data().limit);
+    
+    // Ensure viewMode is set
+    if (!state.viewMode) {
+        state.viewMode = VIEW_MODE.CARDS;
+    }
 
     const paidSum = balances.paidSum;
     const plannedSum = balances.plannedSum;
@@ -211,8 +306,10 @@ async function renderBudgetById(budgetId=state.budgetId) {
     const plannedRemaining = balances.plannedRemaining;
 
     const budgetView = `
+        ${getThemeToggleHTML()}
         <div id="header">
             <h1 id="title">Weekly Budgeter</h1>
+            <h2 id="budget-name">${sanitizeStringForHTML(state.budgetData.name)}</h2>
         </div>
 
         <div id="remaining-budget-container">
@@ -229,41 +326,37 @@ async function renderBudgetById(budgetId=state.budgetId) {
             <div id="expenses-navigation-container">
                 <button id="previous-week"> Previous Week </button>
                 <button id="next-week"> Next Week </button>
+                <button id="toggle-view" class="toggle-view-button">${state.viewMode === VIEW_MODE.CARDS ? '📊 Table View' : '🃏 Card View'}</button>
             </div>
-            <table id="expenses-table">
-                <thead id="expenses-header">
-                    <th>Name</th>
-                    <th>Amount</th>
-                    <th>Date</th>
-                    <th>Status</th>
-                    <th></th>
-                </thead>
-                <tbody id="expenses-body">
-                        ${getBudgetTableBody(currentWeekExpenses)}                
-                </tbody>
-                <tfoot id="expenses-footer">
-                    <td id="expenses-name-cell">
-                        <input type="text" placeholder="New Expense Name" id="new-expense-name">
-                    </td>
-                    <td id="expenses-amount-cell">
-                        <input type="number" placeholder="$420.69" step="0.01" min="0" id="new-expense-amount">
-                    </td>
-                    <td id="expenses-date-cell">
-                        <input type="date" id="new-expense-date">
-                    </td>
-                    <td id="expenses-status-cell">
-                        ${Object.keys(EXPENSES_STATUS_MAP).map((status) => {
-                            return `
-                                <input type="radio" id="new-${status.toLowerCase()}-radio" name="new-expense-status" value="${status}" checked>
-                                <label for="new-${status.toLowerCase()}-radio">${EXPENSES_STATUS_MAP[status]}</label>
-                            `
-                        }).reduce(liReducer)}
-                    </td>
-                    <td id="expenses-submit-cell">
-                        <button id="submit-new-expense">Submit</button>
-                    </td>
-                </tfoot>
-            </table>
+            ${state.viewMode === VIEW_MODE.CARDS ? `
+                <div id="expenses-list">
+                    <div id="new-expense-form" class="expense-card new-expense-card">
+                        <div class="expense-card-content">
+                            <input type="text" placeholder="New Expense Name" id="new-expense-name" class="expense-input">
+                            <input type="number" placeholder="Amount" step="0.01" min="0" id="new-expense-amount" class="expense-input">
+                            <input type="date" id="new-expense-date" class="expense-input">
+                            <div class="expense-status-radio">
+                                ${Object.keys(EXPENSES_STATUS_MAP).map((status) => {
+                                    return `
+                                        <label>
+                                            <input type="radio" id="new-${status.toLowerCase()}-radio" name="new-expense-status" value="${status}" ${status === "PAID" ? "checked" : ""}>
+                                            ${EXPENSES_STATUS_MAP[status]}
+                                        </label>
+                                    `
+                                }).reduce(liReducer)}
+                            </div>
+                        </div>
+                        <div class="expense-card-actions">
+                            <button id="submit-new-expense">Submit</button>
+                        </div>
+                    </div>
+                    ${getExpenseCards(currentWeekExpenses)}
+                </div>
+            ` : `
+                <div id="expenses-table-container">
+                    ${getExpenseTable(currentWeekExpenses)}
+                </div>
+            `}
         </div>
         
         <div id="navigate-buttons">
@@ -278,11 +371,23 @@ async function renderBudgetById(budgetId=state.budgetId) {
     `;
 
     renderView(budgetView);
+    
+    // Apply theme
+    applyTheme(state.theme || THEME.DESERT);
+    attachThemeToggleListener();
 
     document.getElementById("see-all-budgets").addEventListener("click", renderAllBudgets);
     document.getElementById("manage-budget-access").addEventListener("click", renderBudgetAccessManager);
     document.getElementById("sign-out").addEventListener("click", signOut);
-    document.getElementById("submit-new-expense").addEventListener("click", submitNewExpense);
+    
+    // Only attach submit-new-expense listener if in card view
+    if (state.viewMode === VIEW_MODE.CARDS) {
+        const submitButton = document.getElementById("submit-new-expense");
+        if (submitButton) {
+            submitButton.addEventListener("click", submitNewExpense);
+        }
+    }
+    
     document.getElementById("carry-balance").addEventListener("click", () => {
         // Step 1: Calculate Remaining Balance from Previous Week
         const lastWeekStartAndEnd = getWeekStartAndEndDates(state.weekStart, state.weekModifier - 1);
@@ -330,78 +435,99 @@ async function renderBudgetById(budgetId=state.budgetId) {
         renderBudgetById(state.budgetId);
     });
 
-    currentWeekExpenses.forEach((expense, i) => {
-        document.getElementById(`delete-expense-${i}`).addEventListener("click", () => {
-            document.getElementById(`expense-buttons-${i}`).innerHTML = `
-                <button id="submit-expense-delete-${i}" class="submit-delete table-button">Submit Delete</button>
-                <button id="cancel-expense-delete-${i}" class="cancel-delete table-button">Cancel</button>
-            `
-            document.getElementById(`submit-expense-delete-${i}`).addEventListener("click", () => {
-                const updatedExpenses = state.budgetData.expenses.filter((e, i) => i != expense.id);
-
-                const budgetReference = doc(db, "budgets", state.budgetId);
-                setDoc(budgetReference, {
-                    ...state.budgetData,
-                    expenses: updatedExpenses,
-                });
-
-                renderBudgetById(state.budgetId);
-            });
-
-            document.getElementById(`cancel-expense-delete-${i}`).addEventListener("click", () => {
-                renderBudgetById(state.budgetId);
-            });
-        });
-        document.getElementById(`edit-expense-${i}`).addEventListener("click", () => {
-            document.getElementById(`expense-row-${i}`).innerHTML = `
-            <td id="expense-edit-name-${i}-cell">
-                <input type="text" value="${sanitizeStringForHTML(expense.name)}" id="edit-expense-name-${i}">
-            </td>
-            <td id="expense-edit-amount-${i}-cell">
-                <input type="number" value="${expense.amount / 100}" step="0.01" min="0" id="edit-expense-amount-${i}">
-            </td>
-            <td id="expense-edit-date-cell-${i}">
-                <input type="date" value="${expense.date.toDate().toISOString().split('T')[0]}" id="edit-expense-date-${i}">
-            </td>
-            <td id="expense-edit-status-cell-${i}">
-                ${Object.keys(EXPENSES_STATUS_MAP).map((status) => {
-                    return `
-                        <input type="radio" id="edit-${status.toLowerCase()}-radio-${i}" name="edit-expense-status-${i}" value="${status}" checked>
-                        <label for="new-${status.toLowerCase()}-radio">${EXPENSES_STATUS_MAP[status]}</label>
-                    `
-                }).reduce(liReducer)}
-            </td>
-            <td id="expenses-submit-cell">
-                <button id="submit-expense-edit-${i}" class="submit-edit table-button">Submit</button>
-                <button id="cancel-expense-edit-${i}" class="cancel-edit table-button">Cancel</button>
-            </td>
-            `
-            document.getElementById(`submit-expense-edit-${i}`).addEventListener("click", () => {
-                const dateArray = document.getElementById(`edit-expense-date-${i}`).value.split('-');
-                const expenseDate = dateArray.length == 3 ? new Date(dateArray[0], dateArray[1] - 1, dateArray[2]) : new Date();
-
-                let updatedExpenses = [...state.budgetData.expenses];
-                updatedExpenses[expense.id] = {
-                    date: expenseDate,
-                    name: document.getElementById(`edit-expense-name-${i}`).value,
-                    amount: Math.floor(new Number(document.getElementById(`edit-expense-amount-${i}`).value) * 100),
-                    status: Array.from(document.getElementsByName(`edit-expense-status-${i}`)).find((radio) => radio.checked).value,
-                }
-
-                const budgetReference = doc(db, "budgets", state.budgetId);
-                setDoc(budgetReference, {
-                    ...state.budgetData,
-                    expenses: updatedExpenses,
-                });
-
-                renderBudgetById(state.budgetId);
-            });
-
-            document.getElementById(`cancel-expense-edit-${i}`).addEventListener("click", () => {
-                renderBudgetById(state.budgetId);
-            });
-        });
+    document.getElementById("toggle-view").addEventListener("click", () => {
+        state = {
+            ...state,
+            viewMode: state.viewMode === VIEW_MODE.CARDS ? VIEW_MODE.TABLE : VIEW_MODE.CARDS,
+        };
+        
+        renderBudgetById(state.budgetId);
     });
+
+    if (state.viewMode === VIEW_MODE.CARDS) {
+        currentWeekExpenses.forEach((expense, i) => {
+            const deleteButton = document.getElementById(`delete-expense-${i}`);
+            const editButton = document.getElementById(`edit-expense-${i}`);
+            
+            if (deleteButton) {
+                deleteButton.addEventListener("click", () => {
+                    const card = document.getElementById(`expense-card-${i}`);
+                    card.classList.add("delete-mode");
+                    document.getElementById(`expense-buttons-${i}`).innerHTML = `
+                        <button id="submit-expense-delete-${i}" class="submit-delete">Submit Delete</button>
+                        <button id="cancel-expense-delete-${i}" class="cancel-delete">Cancel</button>
+                    `
+                    document.getElementById(`submit-expense-delete-${i}`).addEventListener("click", () => {
+                        const updatedExpenses = state.budgetData.expenses.filter((e, idx) => idx != expense.id);
+
+                        const budgetReference = doc(db, "budgets", state.budgetId);
+                        setDoc(budgetReference, {
+                            ...state.budgetData,
+                            expenses: updatedExpenses,
+                        });
+
+                        renderBudgetById(state.budgetId);
+                    });
+
+                    document.getElementById(`cancel-expense-delete-${i}`).addEventListener("click", () => {
+                        renderBudgetById(state.budgetId);
+                    });
+                });
+            }
+            
+            if (editButton) {
+                editButton.addEventListener("click", () => {
+                    const card = document.getElementById(`expense-card-${i}`);
+                    card.classList.add("edit-mode");
+                    card.innerHTML = `
+                    <div class="expense-card-content">
+                        <input type="text" value="${sanitizeStringForHTML(expense.name)}" id="edit-expense-name-${i}" class="expense-input">
+                        <input type="number" value="${expense.amount / 100}" step="0.01" min="0" id="edit-expense-amount-${i}" class="expense-input">
+                        <input type="date" value="${expense.date.toDate().toISOString().split('T')[0]}" id="edit-expense-date-${i}" class="expense-input">
+                        <div class="expense-status-radio">
+                            ${Object.keys(EXPENSES_STATUS_MAP).map((status) => {
+                                return `
+                                    <label>
+                                        <input type="radio" id="edit-${status.toLowerCase()}-radio-${i}" name="edit-expense-status-${i}" value="${status}" ${expense.status === status ? "checked" : ""}>
+                                        ${EXPENSES_STATUS_MAP[status]}
+                                    </label>
+                                `
+                            }).reduce(liReducer)}
+                        </div>
+                    </div>
+                    <div class="expense-card-actions">
+                        <button id="submit-expense-edit-${i}" class="submit-edit">Submit</button>
+                        <button id="cancel-expense-edit-${i}" class="cancel-edit">Cancel</button>
+                    </div>
+                    `
+                    document.getElementById(`submit-expense-edit-${i}`).addEventListener("click", () => {
+                        const dateArray = document.getElementById(`edit-expense-date-${i}`).value.split('-');
+                        const expenseDate = dateArray.length == 3 ? new Date(dateArray[0], dateArray[1] - 1, dateArray[2]) : new Date();
+
+                        let updatedExpenses = [...state.budgetData.expenses];
+                        updatedExpenses[expense.id] = {
+                            date: expenseDate,
+                            name: document.getElementById(`edit-expense-name-${i}`).value,
+                            amount: Math.floor(new Number(document.getElementById(`edit-expense-amount-${i}`).value) * 100),
+                            status: Array.from(document.getElementsByName(`edit-expense-status-${i}`)).find((radio) => radio.checked).value,
+                        }
+
+                        const budgetReference = doc(db, "budgets", state.budgetId);
+                        setDoc(budgetReference, {
+                            ...state.budgetData,
+                            expenses: updatedExpenses,
+                        });
+
+                        renderBudgetById(state.budgetId);
+                    });
+
+                    document.getElementById(`cancel-expense-edit-${i}`).addEventListener("click", () => {
+                        renderBudgetById(state.budgetId);
+                    });
+                });
+            }
+        });
+    }
 }
 
 async function renderAllBudgets() {
@@ -409,6 +535,7 @@ async function renderAllBudgets() {
     const budgets = await getDocs(allBudgetQuery);
 
     const allBudgetsView = `
+        ${getThemeToggleHTML()}
         <div id="header">
             <h1 id="title">Weekly Budgeter</h1>
         </div>
@@ -445,6 +572,8 @@ async function renderAllBudgets() {
     `;
 
     renderView(allBudgetsView);
+    applyTheme(state.theme || THEME.DESERT);
+    attachThemeToggleListener();
 
     budgets.forEach((budget) => {
         document.getElementById(`view-budget-${budget.id}`).addEventListener("click", () => {
@@ -460,7 +589,10 @@ async function renderAllBudgets() {
     budgets.docs.filter((budgetData) => budgetData.id != state.favoriteBudgetId)
         .forEach((budget) => {
             document.getElementById(`mark-favorite-${budget.id}`).addEventListener("click", async () => {
-                await setDoc(doc(db, "users", state.userId), {favoriteBudget: budget.id});
+                await setDoc(doc(db, "users", state.userId), {
+                    favoriteBudget: budget.id,
+                    theme: state.theme || THEME.DESERT,
+                }, { merge: true });
                 state = {
                     ...state,
                     favoriteBudgetId: budget.id,
@@ -473,6 +605,7 @@ async function renderAllBudgets() {
 async function renderBudgetAccessManager() {
     const filteredEmailList = state.budgetData.emails.filter((email) => email != state.email);
     const budgetAccessManagerView = `
+        ${getThemeToggleHTML()}
         <div id="header">
             <h1 id="title">Weekly Budget</h1>
         </div>
@@ -495,6 +628,8 @@ async function renderBudgetAccessManager() {
     `;
 
     renderView(budgetAccessManagerView);
+    applyTheme(state.theme || THEME.DESERT);
+    attachThemeToggleListener();
 
     filteredEmailList.forEach((buttonEmail, i) => {
         document.getElementById(`remove-${i}`).addEventListener("click", async () => {
@@ -544,6 +679,7 @@ async function renderBudgetAccessManager() {
 
 async function renderNewAccount() {
     const newAccountView = `
+        ${getThemeToggleHTML()}
         <div id="header">
             <h1 id="title">Weekly Budget</h1>
         </div>
@@ -571,6 +707,8 @@ async function renderNewAccount() {
     `;
 
     renderView(newAccountView);
+    applyTheme(state.theme || THEME.DESERT);
+    attachThemeToggleListener();
 
     document.getElementById("create-new-budget").addEventListener("click", async function() {
         const newBudget = {
@@ -585,7 +723,8 @@ async function renderNewAccount() {
         const userReference = doc(db, "users", state.userId)
         setDoc(userReference, {
             favoriteBudget: budgetReference.id,
-        });
+            theme: state.theme || THEME.DESERT,
+        }, { merge: true });
 
         state = {
             ...state,
@@ -613,8 +752,17 @@ const executeLogin = async (user) => {
 
     if (userDocument.exists()) {
         console.log("User has an account.");
+        
+        // Load theme preference
+        const userData = userDocument.data();
+        const savedTheme = userData.theme || THEME.DESERT;
+        state = {
+            ...state,
+            theme: savedTheme,
+        };
+        applyTheme(savedTheme);
 
-        if (userDocument.data().favoriteBudget) {
+        if (userData.favoriteBudget) {
 
             // Check Access to Favorite Budget
             const favoriteBudgetRefernce = doc(db, "budgets", userDocument.data().favoriteBudget);
@@ -641,6 +789,7 @@ const executeLogin = async (user) => {
         const favoriteBudgetId = existingBudgets.docs[0].id;
         await setDoc(userDocumentReference, {
             favoriteBudget: favoriteBudgetId,
+            theme: THEME.DESERT, // Default theme
         });
 
         state = {
@@ -651,7 +800,9 @@ const executeLogin = async (user) => {
 
         renderBudgetById(favoriteBudgetId);
     } else {
-        await setDoc(userDocumentReference, {});
+        await setDoc(userDocumentReference, {
+            theme: THEME.DESERT, // Default theme
+        });
         renderNewAccount();
     }
   // ...

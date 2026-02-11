@@ -18,9 +18,18 @@ const EXPENSES_STATUS_MAP = {
     "PLANNED": "Planned",
 };
 
+/** Expense name used for carried-over weekly balance; excluded from monthly/yearly sums to avoid double counting. */
+const CARRY_BALANCE_EXPENSE_NAME = "Last Week's Balance";
+
 const VIEW_MODE = {
     CARDS: 'CARDS',
     TABLE: 'TABLE',
+};
+
+const PERIOD_TYPE = {
+    WEEKLY: 'WEEKLY',
+    MONTHLY: 'MONTHLY',
+    YEARLY: 'YEARLY',
 };
 
 const THEME = {
@@ -75,6 +84,9 @@ const initializeState = () => {
         weekStart: weekStart,
         weekEnd: weekEnd,
         weekModifier: 0,
+        monthModifier: 0,
+        yearModifier: 0,
+        periodType: PERIOD_TYPE.WEEKLY,
         viewMode: VIEW_MODE.CARDS,
     };
 }
@@ -197,13 +209,14 @@ const getExpenseCards = (expenses) => {
         </div>`).reduce(liReducer, "");
 }
 
-const getExpenseTable = (expenses) => {
+const getExpenseTable = (expenses, periodTitle = '') => {
     if (!expenses || expenses.length === 0) {
         return `<div class="no-expenses">No Expenses Found for Date Range</div>`;
     }
     const sortedExpenses = expenses.sort((a, b) => a.date - b.date);
     return `
         <table class="expenses-table-view">
+            ${periodTitle ? `<caption class="expenses-table-caption">${sanitizeStringForHTML(periodTitle)}</caption>` : ''}
             <thead>
                 <tr>
                     <th>Name</th>
@@ -261,6 +274,37 @@ function getWeekStartAndEndDates(weekStart, weekModifier) {
 
 // @stateless
 // @noUi
+function getMonthStartAndEndDates(monthModifier) {
+    const ref = new Date();
+    const y = ref.getFullYear();
+    const m = ref.getMonth() + monthModifier;
+    const monthStart = new Date(y, m, 1);
+    const monthEnd = new Date(y, m + 1, 1); // first day of next month (exclusive end)
+    return { monthStart, monthEnd };
+}
+
+// @stateless
+// @noUi
+function getYearStartAndEndDates(yearModifier) {
+    const ref = new Date();
+    const y = ref.getFullYear() + yearModifier;
+    const yearStart = new Date(y, 0, 1);
+    const yearEnd = new Date(y + 1, 0, 1);
+    return { yearStart, yearEnd };
+}
+
+// @stateless
+// @noUi
+function getExpensesInRange(expenses, rangeStart, rangeEnd) {
+    return expenses.map((expense, i) => ({ ...expense, id: i }))
+        .filter((expense) => {
+            const d = expense.date.toDate();
+            return d >= rangeStart && d < rangeEnd;
+        });
+}
+
+// @stateless
+// @noUi
 function calculateBalances(weekExpenses, weeklyLimit) {
     const paidSum = weekExpenses.filter((expense) => expense.status == "PAID")
         .map((expense) => expense.amount)
@@ -278,6 +322,27 @@ function calculateBalances(weekExpenses, weeklyLimit) {
     };
 }
 
+function getPeriodData(state, expenses, weeklyLimit) {
+    const periodType = state.periodType || PERIOD_TYPE.WEEKLY;
+    if (periodType === PERIOD_TYPE.WEEKLY) {
+        const weekStartAndEnd = getWeekStartAndEndDates(state.weekStart, state.weekModifier);
+        const periodExpenses = getCurrentWeekExpenses(expenses, weekStartAndEnd);
+        const periodTitle = "Week of " + weekStartAndEnd.weekStart.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' });
+        return { periodExpenses, periodLimit: weeklyLimit, periodTitle, weekStartAndEnd };
+    }
+    if (periodType === PERIOD_TYPE.MONTHLY) {
+        const { monthStart, monthEnd } = getMonthStartAndEndDates(state.monthModifier || 0);
+        const periodExpenses = getExpensesInRange(expenses, monthStart, monthEnd);
+        const periodTitle = monthStart.toLocaleDateString('default', { month: 'long', year: 'numeric' });
+        return { periodExpenses, periodLimit: weeklyLimit * 4, periodTitle, monthStart, monthEnd };
+    }
+    // YEARLY
+    const { yearStart, yearEnd } = getYearStartAndEndDates(state.yearModifier || 0);
+    const periodExpenses = getExpensesInRange(expenses, yearStart, yearEnd);
+    const periodTitle = String(yearStart.getFullYear());
+    return { periodExpenses, periodLimit: weeklyLimit * 52, periodTitle, yearStart, yearEnd };
+}
+
 async function renderBudgetById(budgetId=state.budgetId) {
     const budgetDocument = await getDoc(doc(db, "budgets", budgetId));
 
@@ -291,19 +356,38 @@ async function renderBudgetById(budgetId=state.budgetId) {
         budgetData: budgetDocument.data(),
     };
 
-    const weekStartAndEnd = getWeekStartAndEndDates(state.weekStart, state.weekModifier);
-    const currentWeekExpenses = getCurrentWeekExpenses(budgetDocument.data().expenses, weekStartAndEnd);
-    const balances = calculateBalances(currentWeekExpenses, budgetDocument.data().limit);
-    
-    // Ensure viewMode is set
+    const weeklyLimit = budgetDocument.data().limit;
+    const periodData = getPeriodData(state, budgetDocument.data().expenses || [], weeklyLimit);
+    const { periodExpenses, periodLimit, periodTitle } = periodData;
+    const weekStartAndEnd = state.periodType === PERIOD_TYPE.WEEKLY ? periodData.weekStartAndEnd : getWeekStartAndEndDates(state.weekStart, state.weekModifier);
+
+    // In monthly/yearly views, exclude carry-balance expenses from sums to avoid double counting
+    const periodExpensesForSum = state.periodType === PERIOD_TYPE.WEEKLY
+        ? periodExpenses
+        : periodExpenses.filter((e) => e.name !== CARRY_BALANCE_EXPENSE_NAME);
+    const balances = calculateBalances(periodExpensesForSum, periodLimit);
+
+    // Ensure viewMode and periodType are set
     if (!state.viewMode) {
         state.viewMode = VIEW_MODE.CARDS;
+    }
+    if (!state.periodType) {
+        state.periodType = PERIOD_TYPE.WEEKLY;
     }
 
     const paidSum = balances.paidSum;
     const plannedSum = balances.plannedSum;
     const remainingBudget = balances.remainingBudget;
     const plannedRemaining = balances.plannedRemaining;
+
+    const weeklyBudgetDisplay = (weeklyLimit / 100).toFixed(2);
+    const monthlyBudgetDisplay = ((weeklyLimit * 4) / 100).toFixed(2);
+    const yearlyBudgetDisplay = ((weeklyLimit * 52) / 100).toFixed(2);
+
+    const cycleLabel = state.periodType === PERIOD_TYPE.WEEKLY ? 'Month' : state.periodType === PERIOD_TYPE.MONTHLY ? 'Year' : 'Week';
+    const cycleTitle = state.periodType === PERIOD_TYPE.WEEKLY ? 'Switch to monthly view' : state.periodType === PERIOD_TYPE.MONTHLY ? 'Switch to yearly view' : 'Switch to weekly view';
+    const viewLabel = state.viewMode === VIEW_MODE.CARDS ? 'Table' : 'Cards';
+    const viewTitle = state.viewMode === VIEW_MODE.CARDS ? 'Switch to table view' : 'Switch to card view';
 
     const budgetView = `
         ${getThemeToggleHTML()}
@@ -316,6 +400,17 @@ async function renderBudgetById(budgetId=state.budgetId) {
             <h2 id="remaining-budget" class="${remainingBudget >= 0 ? "under-budget" : "over-budget"}">\$${remainingBudget / 100}</h2>
         </div>
 
+        <div id="budget-amounts-container" class="budget-amounts-container ${state.budgetAmountsExpanded ? '' : 'is-collapsed'}">
+            <button type="button" id="budget-amounts-toggle" class="budget-amounts-toggle" aria-expanded="${state.budgetAmountsExpanded}">
+                <span class="budget-amounts-label">Budget amounts</span>
+                <span class="budget-amounts-chevron" aria-hidden="true">${state.budgetAmountsExpanded ? '▲' : '▼'}</span>
+            </button>
+            <div class="budget-amounts-content">
+                <p id="weekly-budget-amount">Weekly: \$${weeklyBudgetDisplay}</p>
+                <p id="monthly-budget-amount">Monthly: \$${monthlyBudgetDisplay} <span class="budget-note">(4×)</span></p>
+                <p id="yearly-budget-amount">Yearly: \$${yearlyBudgetDisplay} <span class="budget-note">(52×)</span></p>
+            </div>
+        </div>
         <div id="budget-sums-container">
             <p id="paid-sum"> Paid Sum: \$${paidSum / 100}</p>
             <p id="planned-remaining" class="${plannedRemaining >= 0 ? "under-budget" : "over-budget"}">Planned Remaining: \$${plannedRemaining / 100}</p>
@@ -324,10 +419,12 @@ async function renderBudgetById(budgetId=state.budgetId) {
 
         <div id="expenses-container">
             <div id="expenses-navigation-container">
-                <button id="previous-week"> Previous Week </button>
-                <button id="next-week"> Next Week </button>
-                <button id="toggle-view" class="toggle-view-button">${state.viewMode === VIEW_MODE.CARDS ? '📊 Table View' : '🃏 Card View'}</button>
+                <button id="previous-period" type="button" title="Previous period">‹ Prev</button>
+                <button id="cycle-period" class="cycle-period-button" title="${cycleTitle}">${cycleLabel}</button>
+                <button id="toggle-view" class="toggle-view-button" title="${viewTitle}">${viewLabel}</button>
+                <button id="next-period" type="button" title="Next period">Next ›</button>
             </div>
+            <div id="period-title" class="period-title">${sanitizeStringForHTML(periodTitle)}</div>
             ${state.viewMode === VIEW_MODE.CARDS ? `
                 <div id="expenses-list">
                     <div id="new-expense-form" class="expense-card new-expense-card">
@@ -350,11 +447,11 @@ async function renderBudgetById(budgetId=state.budgetId) {
                             <button id="submit-new-expense">Submit</button>
                         </div>
                     </div>
-                    ${getExpenseCards(currentWeekExpenses)}
+                    ${getExpenseCards(periodExpenses)}
                 </div>
             ` : `
                 <div id="expenses-table-container">
-                    ${getExpenseTable(currentWeekExpenses)}
+                    ${getExpenseTable(periodExpenses, periodTitle)}
                 </div>
             `}
         </div>
@@ -362,7 +459,7 @@ async function renderBudgetById(budgetId=state.budgetId) {
         <div id="navigate-buttons">
             <button id="see-all-budgets">See All Budgets</button>
             <button id="manage-budget-access">Manage Budget Access</button>
-            <button id="carry-balance">Carry Balance</button>
+            ${state.periodType === PERIOD_TYPE.WEEKLY ? '<button id="carry-balance">Carry Balance</button>' : ''}
         </div>
 
         <div id="sign-out-container">
@@ -376,6 +473,14 @@ async function renderBudgetById(budgetId=state.budgetId) {
     applyTheme(state.theme || THEME.DESERT);
     attachThemeToggleListener();
 
+    const budgetAmountsToggle = document.getElementById("budget-amounts-toggle");
+    if (budgetAmountsToggle) {
+        budgetAmountsToggle.addEventListener("click", () => {
+            state = { ...state, budgetAmountsExpanded: !state.budgetAmountsExpanded };
+            renderBudgetById(state.budgetId);
+        });
+    }
+
     document.getElementById("see-all-budgets").addEventListener("click", renderAllBudgets);
     document.getElementById("manage-budget-access").addEventListener("click", renderBudgetAccessManager);
     document.getElementById("sign-out").addEventListener("click", signOut);
@@ -388,50 +493,63 @@ async function renderBudgetById(budgetId=state.budgetId) {
         }
     }
     
-    document.getElementById("carry-balance").addEventListener("click", () => {
-        // Step 1: Calculate Remaining Balance from Previous Week
-        const lastWeekStartAndEnd = getWeekStartAndEndDates(state.weekStart, state.weekModifier - 1);
-        const currentWeekExpenses = getCurrentWeekExpenses(budgetDocument.data().expenses, lastWeekStartAndEnd);
-        const balances = calculateBalances(currentWeekExpenses, budgetDocument.data().limit);
-        // Step 1.1: Use the negation to carry over. (If we go over budget on week 1, that should count as an expense in week 2) 
-        const lastWeeksBalanceToCarry = -balances.remainingBudget;
+    const carryBalanceBtn = document.getElementById("carry-balance");
+    if (carryBalanceBtn) {
+        carryBalanceBtn.addEventListener("click", () => {
+            // Step 1: Calculate Remaining Balance from Previous Week
+            const lastWeekStartAndEnd = getWeekStartAndEndDates(state.weekStart, state.weekModifier - 1);
+            const currentWeekExpenses = getCurrentWeekExpenses(budgetDocument.data().expenses, lastWeekStartAndEnd);
+            const balances = calculateBalances(currentWeekExpenses, budgetDocument.data().limit);
+            // Step 1.1: Use the negation to carry over. (If we go over budget on week 1, that should count as an expense in week 2)
+            const lastWeeksBalanceToCarry = -balances.remainingBudget;
 
-        // Step 2: Add it as Expense to Current Week
-        const expense = {
-            date: weekStartAndEnd.weekStart, // Sunday of current week
-            name: "Last Week's Balance",
-            amount: lastWeeksBalanceToCarry,
-            status: "PAID",
-        };
-    
-        const budgetReference = doc(db, "budgets", state.budgetId);
-        setDoc(budgetReference, {
-            ...state.budgetData,
-            expenses: [
-                ...state.budgetData.expenses,
-                expense,
-            ]
+            // Step 2: Add it as Expense to Current Week
+            const expense = {
+                date: weekStartAndEnd.weekStart, // Sunday of current week
+                name: CARRY_BALANCE_EXPENSE_NAME,
+                amount: lastWeeksBalanceToCarry,
+                status: "PAID",
+            };
+
+            const budgetReference = doc(db, "budgets", state.budgetId);
+            setDoc(budgetReference, {
+                ...state.budgetData,
+                expenses: [
+                    ...state.budgetData.expenses,
+                    expense,
+                ]
+            });
+            // Step 3: Refresh
+            renderBudgetById(state.budgetId);
         });
-        // Step 3: Refresh
-        renderBudgetById(state.budgetId);
+    }
 
+    document.getElementById("previous-period").addEventListener("click", () => {
+        if (state.periodType === PERIOD_TYPE.WEEKLY) {
+            state = { ...state, weekModifier: state.weekModifier - 1 };
+        } else if (state.periodType === PERIOD_TYPE.MONTHLY) {
+            state = { ...state, monthModifier: (state.monthModifier || 0) - 1 };
+        } else {
+            state = { ...state, yearModifier: (state.yearModifier || 0) - 1 };
+        }
+        renderBudgetById(state.budgetId);
     });
 
-    document.getElementById("previous-week").addEventListener("click", () => {
-        state = {
-            ...state,
-            weekModifier: state.weekModifier - 1,
-        };
-        
+    document.getElementById("next-period").addEventListener("click", () => {
+        if (state.periodType === PERIOD_TYPE.WEEKLY) {
+            state = { ...state, weekModifier: state.weekModifier + 1 };
+        } else if (state.periodType === PERIOD_TYPE.MONTHLY) {
+            state = { ...state, monthModifier: (state.monthModifier || 0) + 1 };
+        } else {
+            state = { ...state, yearModifier: (state.yearModifier || 0) + 1 };
+        }
         renderBudgetById(state.budgetId);
     });
 
-    document.getElementById("next-week").addEventListener("click", () => {
-        state = {
-            ...state,
-            weekModifier: state.weekModifier + 1,
-        };
-        
+    document.getElementById("cycle-period").addEventListener("click", () => {
+        const order = [PERIOD_TYPE.WEEKLY, PERIOD_TYPE.MONTHLY, PERIOD_TYPE.YEARLY];
+        const idx = order.indexOf(state.periodType);
+        state = { ...state, periodType: order[(idx + 1) % 3] };
         renderBudgetById(state.budgetId);
     });
 
@@ -445,7 +563,7 @@ async function renderBudgetById(budgetId=state.budgetId) {
     });
 
     if (state.viewMode === VIEW_MODE.CARDS) {
-        currentWeekExpenses.forEach((expense, i) => {
+        periodExpenses.forEach((expense, i) => {
             const deleteButton = document.getElementById(`delete-expense-${i}`);
             const editButton = document.getElementById(`edit-expense-${i}`);
             

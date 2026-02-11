@@ -188,6 +188,59 @@ body {
     gap: var(--spacing-sm);
 }
 
+.budget-amounts-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    margin: var(--spacing-xs) 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+.budget-amounts-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    margin: 0;
+    padding: var(--spacing-xs) 0;
+    background: none;
+    border: none;
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    cursor: pointer;
+    text-align: left;
+    width: auto;
+}
+
+.budget-amounts-toggle:hover {
+    color: var(--font-color);
+    text-decoration: underline;
+}
+
+.budget-amounts-chevron {
+    font-size: 0.65em;
+    opacity: 0.8;
+}
+
+.budget-amounts-content {
+    padding-left: var(--spacing-sm);
+}
+
+.budget-amounts-container.is-collapsed .budget-amounts-content {
+    display: none;
+}
+
+.budget-amounts-content > p {
+    margin: 0;
+    padding: var(--spacing-xs) 0;
+    font-size: var(--font-size-xs);
+}
+
+.budget-note {
+    font-size: var(--font-size-xs);
+    opacity: 0.85;
+}
+
 #budget-sums-container {
     flex-direction: column;
     margin: var(--spacing-md) 0;
@@ -208,6 +261,24 @@ body {
 
 #expenses-navigation-container > button {
     flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+}
+
+#expenses-navigation-container #previous-period {
+    flex: 0 1 auto;
+    min-width: 4.5rem;
+}
+
+#expenses-navigation-container #next-period {
+    flex: 0 1 auto;
+    min-width: 4.5rem;
+    margin-left: auto;
+}
+
+#expenses-navigation-container .cycle-period-button,
+#expenses-navigation-container .toggle-view-button {
+    flex: 0 1 auto;
     min-width: 0;
 }
 
@@ -597,9 +668,26 @@ button#submit-new-expense {
 }
 
 .toggle-view-button {
-    flex: 0 0 auto;
-    min-width: 120px;
     font-size: var(--font-size-sm);
+}
+
+.cycle-period-button {
+    font-size: var(--font-size-sm);
+}
+
+#period-title.period-title {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--font-color);
+    margin-bottom: var(--spacing-sm);
+}
+
+.expenses-table-view .expenses-table-caption {
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    padding: var(--spacing-sm) 0;
+    caption-side: top;
+    color: var(--font-color);
 }
 
 #create-new-budget {
@@ -763,11 +851,6 @@ button#submit-new-expense {
     #add-email-container input[type="email"] {
         flex: 1;
         margin-right: var(--spacing-sm);
-    }
-    
-    #expenses-navigation-container > button {
-        flex: 0 1 auto;
-        min-width: 150px;
     }
     
     #expenses-list {
